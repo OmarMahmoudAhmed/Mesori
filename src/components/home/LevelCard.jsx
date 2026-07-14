@@ -88,8 +88,9 @@ function LevelCard({ level }) {
           <img
             src="/assets/icons/badges/lock.png"
             alt="مقفول"
-            width={14}
-            height={14}
+            width={20}
+            height={20}
+            margin={0}
             className="opacity-80"
           />
         )}
@@ -106,8 +107,8 @@ function LevelCard({ level }) {
         <img
           src={level.iconSrc}
           alt={level.nameAr}
-          width={100}
-          height={100}
+          width={150}
+          height={150}
           style={{ objectFit: 'contain' }}
         />
 

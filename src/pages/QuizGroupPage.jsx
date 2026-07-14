@@ -303,8 +303,8 @@ function QuizGroupPage() {
                   onClick={(e) => { e.stopPropagation(); handleStartStage(stage); }}
                 >
                   ابدأ
-                  {/* 🖼️ صورة مطلوبة: /assets/icons/quiz-group/start-arrow.png (14×14px، أبيض) */}
-                  <img src="/assets/icons/quiz-group/start-arrow.png" alt="" width={14} height={14} />
+                  {/* أيقونة Flaticon Uicons (fi fi-rr-arrow-small-right) بدلاً من صورة PNG */}
+                  <i className="fi fi-rr-arrow-small-right" aria-hidden="true" style={{ fontSize: '14px', color: '#FFFFFF' }} />
                 </button>
               ) : (
                 <div

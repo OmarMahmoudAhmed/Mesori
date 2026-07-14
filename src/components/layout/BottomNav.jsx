@@ -54,10 +54,10 @@ function BottomNav({ activePage = 'home' }) {
       iconBgActive:   '#1A7F8E',
       iconBgInactive: '#2A6070',
       /*
-       * 🖼️ صورة مطلوبة: /assets/icons/nav/info.png (22×22px، يُفضَّل أبيض/فاتح اللون
-       * لأنها ستوضع فوق دائرة ملونة)
+       * أيقونة Flaticon Uicons (fi fi-rr-info) بدلاً من صورة PNG
+       * اللون أبيض لأنها توضع فوق دائرة ملونة
        */
-      iconSrc: '/assets/icons/nav/info.png',
+      iconClass: 'fi fi-rr-info',
     },
 
     /* ---- زر الصفحة الرئيسية (في المنتصف) ---- */
@@ -70,9 +70,9 @@ function BottomNav({ activePage = 'home' }) {
       iconBgActive:   '#8B5A2B',
       iconBgInactive: '#6B4020',
       /*
-       * 🖼️ صورة مطلوبة: /assets/icons/nav/home.png (22×22px، أبيض/فاتح اللون)
+       * أيقونة Flaticon Uicons (fi fi-rr-home) بدلاً من صورة PNG
        */
-      iconSrc: '/assets/icons/nav/home.png',
+      iconClass: 'fi fi-rr-home',
     },
 
     /* ---- زر قائمة المتصدرين (أقصى اليمين في RTL = يمين بصري) ---- */
@@ -85,9 +85,9 @@ function BottomNav({ activePage = 'home' }) {
       iconBgActive:   '#C8922A',
       iconBgInactive: '#9A6A1A',
       /*
-       * 🖼️ صورة مطلوبة: /assets/icons/nav/leaderboard.png (22×22px، أبيض/فاتح اللون)
+       * أيقونة Flaticon Uicons (fi fi-rr-leaderboard) بدلاً من صورة PNG
        */
-      iconSrc: '/assets/icons/nav/leaderboard.png',
+      iconClass: 'fi fi-rr-leaderboard',
     },
 
   ];
@@ -153,15 +153,17 @@ function BottomNav({ activePage = 'home' }) {
                 }}
               >
                 {/*
-                  * عرض أيقونة PNG للعنصر
+                  * عرض أيقونة Flaticon Uicons للعنصر
                   * opacity تتغيّر حسب حالة النشاط (نفس منطق السابق)
                   */}
-                <img
-                  src={item.iconSrc}
-                  alt={item.labelAr}
-                  width={22}
-                  height={22}
-                  style={{ opacity: isActive ? 1 : 0.8 }}
+                <i
+                  className={item.iconClass}
+                  aria-hidden="true"
+                  style={{
+                    fontSize: '22px',
+                    color:    '#FFFFFF',
+                    opacity:  isActive ? 1 : 0.8,
+                  }}
                 />
               </div>
 

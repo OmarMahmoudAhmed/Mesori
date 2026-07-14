@@ -34,8 +34,8 @@ function ProfileField({ icon, label, value, onEdit }) {
         "
         style={{ backgroundColor: '#F4E2BC', border: '1px solid rgba(200,146,42,0.3)' }}
       >
-        {/* 🖼️ صورة مطلوبة: /assets/icons/profile/edit-pencil.png (14×14px) */}
-        <img src="/assets/icons/profile/edit-pencil.png" alt="تعديل" width={14} height={14} />
+        {/* أيقونة Flaticon Uicons (fi fi-rr-pencil) بدلاً من صورة PNG */}
+        <i className="fi fi-rr-pencil" aria-hidden="true" style={{ fontSize: '14px', color: '#8B5A2B' }} />
       </button>
 
       {/* اسم الحقل */}
@@ -210,13 +210,13 @@ function ProfilePage() {
                       <ExplorerCharacter size={60} gender={key} />
                     </div>
 
-                    {/* علامة الاختيار — 🖼️ صورة مطلوبة: /assets/icons/profile/checkmark.png (12×12px، أبيض) */}
+                    {/* علامة الاختيار — أيقونة Flaticon Uicons (fi fi-rr-check) بدلاً من صورة PNG */}
                     {isSelected && (
                       <div
                         className="absolute -top-1 -left-1 w-6 h-6 rounded-full flex items-center justify-center"
                         style={{ backgroundColor: '#2D6A3F' }}
                       >
-                        <img src="/assets/icons/profile/checkmark.png" alt="مُختار" width={12} height={12} />
+                        <i className="fi fi-rr-check" aria-hidden="true" style={{ fontSize: '12px', color: '#FFFFFF' }} />
                       </div>
                     )}
                   </div>

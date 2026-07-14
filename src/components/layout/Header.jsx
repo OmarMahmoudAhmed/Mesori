@@ -65,9 +65,9 @@ function Header({ showBack = false, showSound = false, onBack = null }) {
         >
           {/*
             * سهم الرجوع (متجه لليمين، مناسب لـ RTL)
-            * 🖼️ صورة مطلوبة: /assets/icons/header/back-arrow.png (22×22px)
+            * أيقونة Flaticon Uicons (fi fi-rr-arrow-right) بدلاً من صورة PNG
             */}
-          <img src="/assets/icons/header/back-arrow.png" alt="رجوع" width={22} height={22} />
+          <i className="fi fi-rr-arrow-right" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
         </button>
 
       ) : showSound ? (
@@ -87,14 +87,14 @@ function Header({ showBack = false, showSound = false, onBack = null }) {
         >
           {/*
             * أيقونة الصوت (تتغيّر حسب isSoundOn)
-            * 🖼️ صور مطلوبة (22×22px لكل منهما):
-            *   - /assets/icons/header/sound-on.png
-            *   - /assets/icons/header/sound-off.png
+            * أيقونتا Flaticon Uicons بدلاً من صور PNG:
+            *   - fi fi-rr-volume       (صوت مفعّل)
+            *   - fi fi-rr-volume-mute  (صوت مكتوم)
             */}
           {isSoundOn ? (
-            <img src="/assets/icons/header/sound-on.png" alt="كتم الصوت" width={22} height={22} />
+            <i className="fi fi-rr-volume" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
           ) : (
-            <img src="/assets/icons/header/sound-off.png" alt="تشغيل الصوت" width={22} height={22} />
+            <i className="fi fi-rr-volume-mute" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
           )}
         </button>
 
@@ -118,9 +118,9 @@ function Header({ showBack = false, showSound = false, onBack = null }) {
       >
         {/*
           * أيقونة الإعدادات (الترس)
-          * 🖼️ صورة مطلوبة: /assets/icons/header/settings.png (22×22px)
+          * أيقونة Flaticon Uicons (fi fi-rr-settings) بدلاً من صورة PNG
           */}
-        <img src="/assets/icons/header/settings.png" alt="الإعدادات" width={22} height={22} />
+        <i className="fi fi-rr-settings" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
       </button>
     </header>
   );

@@ -1,201 +1,83 @@
 /*
  * =====================================================
- * BottomNav.jsx - شريط التنقل السفلي
+ * BottomNav.jsx - شريط تنقل سفلي (أيقونات + زجاج خفيف)
  * =====================================================
  *
- * يحتوي على 3 أزرار تنقل رئيسية:
- * ┌──────────────────────────────────────────────────┐
- * │  [ℹ️ معلومات]   [🏠 الرئيسية]   [🏆 المتصدرين] │
- * │     INFO            Home          LEADERBOARD    │
- * └──────────────────────────────────────────────────┘
- *
- * الزر النشط (activePage) يحصل على:
- * - حدود ملونة حول الدائرة
- * - لون مختلف للأيقونة
- *
- * position: fixed = الشريط ثابت في أسفل الشاشة دائماً
- * width: min(100%, 448px) = لا يتجاوز عرض التطبيق
- * left: 50%; transform: translateX(-50%) = توسيط الشريط
- *
- * الخصائص (Props):
- * @prop activePage {string} - اسم الصفحة الحالية للتمييز البصري
- * =====================================================
+ * - أيقونات فقط بدون نصوص.
+ * - تأثير زجاجي معتدل وبسيط.
+ * - شريط نحيف وثابت دائماً في الأسفل.
  */
 
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 function BottomNav({ activePage = 'home' }) {
-
-  /*
-   * نجلب navigateTo من Context لتغيير الصفحة
-   * عند الضغط على أي زر تنقل
-   */
   const { navigateTo } = useApp();
 
-  /*
-   * أزرار التنقل - كل زر يحتوي على:
-   * - id:        مُعرّف للمقارنة مع activePage
-   * - page:      اسم الصفحة في نظام التنقل
-   * - labelEn:   التسمية بالإنجليزية
-   * - labelAr:   التسمية بالعربية
-   * - iconColor: لون الدائرة الخلفية
-   * - icon:      مكوّن SVG للأيقونة
-   */
   const navItems = [
-
-    /* ---- زر الإعدادات/المعلومات (أقصى اليسار في RTL = يسار بصري) ---- */
-    {
-      id:       'profile',
-      page:     'profile',
-      labelEn:  'INFO',
-      labelAr:  'معلوماتي',
-      /* دائرة فيروزية (تبقى مُتحكَّم بها بالكود لتغيير اللون بين active/inactive) */
-      iconBgActive:   '#1A7F8E',
-      iconBgInactive: '#2A6070',
-      /*
-       * أيقونة Flaticon Uicons (fi fi-rr-info) بدلاً من صورة PNG
-       * اللون أبيض لأنها توضع فوق دائرة ملونة
-       */
-      iconClass: 'fi fi-rr-info',
-    },
-
-    /* ---- زر الصفحة الرئيسية (في المنتصف) ---- */
-    {
-      id:       'home',
-      page:     'home',
-      labelEn:  'Home',
-      labelAr:  'الرئيسية',
-      /* دائرة بنية دافئة */
-      iconBgActive:   '#8B5A2B',
-      iconBgInactive: '#6B4020',
-      /*
-       * أيقونة Flaticon Uicons (fi fi-rr-home) بدلاً من صورة PNG
-       */
-      iconClass: 'fi fi-rr-home',
-    },
-
-    /* ---- زر قائمة المتصدرين (أقصى اليمين في RTL = يمين بصري) ---- */
-    {
-      id:       'leaderboard',
-      page:     'leaderboard',
-      labelEn:  'LEADERBOARD',
-      labelAr:  'المتصدرين',
-      /* دائرة ذهبية */
-      iconBgActive:   '#C8922A',
-      iconBgInactive: '#9A6A1A',
-      /*
-       * أيقونة Flaticon Uicons (fi fi-rr-leaderboard) بدلاً من صورة PNG
-       */
-      iconClass: 'fi fi-rr-leaderboard',
-    },
-
+    { id: 'profile', page: 'profile', iconClass: 'fi fi-rr-info', label: 'معلوماتي' },
+    { id: 'home', page: 'home', iconClass: 'fi fi-rr-home', label: 'الرئيسية' },
+    { id: 'leaderboard', page: 'leaderboard', iconClass: 'fi fi-rr-leaderboard', label: 'المتصدرين' },
   ];
 
   return (
-    /*
-     * الشريط ثابت في الأسفل (position: fixed)
-     * width: min(100%, 448px) = لا يتجاوز عرض حاوية التطبيق
-     * left + transform = يوسّطه أفقياً على الشاشة
-     * z-50 = يظهر فوق كل المحتوى الآخر
-     */
     <nav
-      dir="ltr" /* نستخدم LTR ليكون ترتيب الأزرار: INFO | Home | Leaderboard من اليسار */
-      className="fixed bottom-0 z-50"
+      dir="ltr"
+      className="fixed bottom-0 z-50 rounded-t-2xl"
       style={{
-        width:     'min(100%, 448px)', /* أقصى عرض = عرض max-w-md */
-        left:      '50%',
+        width: 'min(100%, 448px)',
+        left: '50%',
         transform: 'translateX(-50%)',
-        backgroundColor: '#1A0F02',   /* بني داكن جداً تقريباً أسود */
+
+        /* تأثير زجاجي خفيف ومتناسق */
+        background: 'rgba(253, 246, 227, 0.6)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.4)',
+        boxShadow: '0 -4px 12px rgba(62, 39, 35, 0.12)',
       }}
     >
-      <div className="flex items-center justify-around px-4 py-3 pb-safe">
-
-        {/* رسم كل زر تنقل */}
+      <div className="flex items-center justify-around px-2 py-1.5 pb-safe">
         {navItems.map((item) => {
-
-          /*
-           * isActive = صحيح إذا كانت هذه الصفحة هي الحالية
-           * يُغيّر المظهر البصري للزر النشط
-           */
           const isActive = activePage === item.id;
 
           return (
             <button
               key={item.id}
               onClick={() => navigateTo(item.page)}
-              className="
-                flex flex-col items-center gap-1
-                press-effect no-tap-highlight
-                min-w-[60px]
-              "
-              aria-label={item.labelAr}
+              className="flex items-center justify-center press-effect no-tap-highlight w-14 h-14 relative"
+              aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
             >
-
-              {/*
-                * الدائرة التي تحتوي على الأيقونة
-                * عند النشاط: حدود ملونة (ring) + لون أفتح
-                */}
-              <div
-                className={`
-                  w-12 h-12
-                  rounded-full
-                  flex items-center justify-center
-                  transition-all duration-200
-                  ${isActive
-                    ? 'ring-2 ring-white ring-opacity-40 scale-110'
-                    : 'opacity-75'
-                  }
-                `}
-                style={{
-                  backgroundColor: isActive ? item.iconBgActive : item.iconBgInactive,
-                }}
-              >
-                {/*
-                  * عرض أيقونة Flaticon Uicons للعنصر
-                  * opacity تتغيّر حسب حالة النشاط (نفس منطق السابق)
-                  */}
-                <i
-                  className={item.iconClass}
-                  aria-hidden="true"
+              {/* دائرة زجاجية خفيفة جداً للعنصر النشط */}
+              {isActive && (
+                <span
+                  className="absolute inset-0 m-auto w-10 h-10 rounded-full"
                   style={{
-                    fontSize: '22px',
-                    color:    '#FFFFFF',
-                    opacity:  isActive ? 1 : 0.8,
+                    background: 'rgba(255, 255, 255, 0.35)',
+                    backdropFilter: 'blur(4px)',
+                    WebkitBackdropFilter: 'blur(4px)',
+                    border: '1px solid rgba(255, 255, 255, 0.5)',
+                    boxShadow: '0 2px 8px rgba(200, 146, 42, 0.15)',
                   }}
                 />
-              </div>
+              )}
 
-              {/* التسمية بالإنجليزية */}
-              <span
-                className="text-xs font-bold tracking-wide"
+              <i
+                className={item.iconClass}
+                aria-hidden="true"
                 style={{
-                  fontFamily: "'Cairo', sans-serif",
-                  color:      isActive ? '#FFFFFF' : '#9CA3AF',
-                  fontSize:   '9px',
-                  letterSpacing: '0.5px',
+                  fontSize: '22px',
+                  color: isActive ? '#C8922A' : '#A3906C',
+                  filter: isActive ? 'drop-shadow(0 1px 3px rgba(200, 146, 42, 0.3))' : 'none',
+                  zIndex: 1,
+                  transition: 'all 0.2s ease',
+                  transform: isActive ? 'scale(1.1)' : 'scale(1)',
                 }}
-              >
-                {item.labelEn}
-              </span>
-
-              {/* التسمية بالعربية */}
-              <span
-                className="text-xs font-semibold"
-                style={{
-                  fontFamily: "'Cairo', sans-serif",
-                  color:      isActive ? '#D4A040' : '#6B7280',
-                  fontSize:   '10px',
-                }}
-              >
-                {item.labelAr}
-              </span>
-
+              />
             </button>
           );
         })}
-
       </div>
     </nav>
   );

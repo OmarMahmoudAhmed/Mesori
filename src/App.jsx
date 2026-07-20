@@ -14,6 +14,7 @@
  * │  └── AppContent                         │
  * │       ├── HomePage        (home)         │
  * │       ├── QuizGroupPage   (quiz-group)   │
+ * │       ├── QuizPage        (quiz)         │
  * │       ├── LeaderboardPage (leaderboard)  │
  * │       └── ProfilePage     (profile)      │
  * └─────────────────────────────────────────┘
@@ -36,6 +37,7 @@ import { AppProvider, useApp } from './context/AppContext';
 /* استيراد جميع الصفحات */
 import HomePage        from './pages/HomePage';
 import QuizGroupPage   from './pages/QuizGroupPage';
+import QuizPage        from './pages/QuizPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ProfilePage     from './pages/ProfilePage';
 
@@ -73,6 +75,10 @@ function AppContent() {
       case 'quiz-group':
         /* قائمة مراحل المستوى المحدد */
         return <QuizGroupPage />;
+
+      case 'quiz':
+        /* الاختبار الفعلي لمرحلة محددة */
+        return <QuizPage />;
 
       case 'leaderboard':
         /* قائمة المتصدرين */

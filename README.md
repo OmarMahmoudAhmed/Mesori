@@ -38,12 +38,14 @@ mesori-app/
     │
     ├── data/                     ← بيانات وهمية (Mock Data)
     │   ├── levels.js             ← المستويات والمراحل
+    │   ├── quizzes.js            ← أسئلة الاختبارات (مرحلة 1-1 فقط حالياً)
     │   ├── leaderboard.js        ← قائمة المتصدرين
     │   └── userProfile.js        ← بيانات المستخدم
     │
     ├── pages/                    ← الصفحات الرئيسية
     │   ├── HomePage.jsx          ✅ مُنفَّذة بالكامل
     │   ├── QuizGroupPage.jsx     ✅ مُنفَّذة
+    │   ├── QuizPage.jsx          ✅ مُنفَّذة (أسئلة + نتيجة + نقاط)
     │   ├── LeaderboardPage.jsx   ✅ مُنفَّذة
     │   └── ProfilePage.jsx       ✅ مُنفَّذة
     │
@@ -86,7 +88,7 @@ mesori-app/
 
 ## 🔮 الخطوات القادمة
 
-- [ ] بناء صفحة الاختبار (QuizPage)
+- [x] بناء صفحة الاختبار (QuizPage)
 - [ ] إضافة الأسئلة الحقيقية في ملفات JSON
 - [ ] نظام النقاط والمكافآت
 - [ ] الترحيل إلى Next.js + Supabase

@@ -8,9 +8,6 @@
  * - AppProvider = محطة البث (تُرسل البيانات)
  * - useApp()    = راديو (أي مكوّن يريد الاستماع)
  *
- * بدون Context: نحتاج تمرير props من الجد للأب للابن
- * مع Context:   أي مكوّن يأخذ ما يحتاجه مباشرة
- *
  * خارطة البيانات المُدارة هنا:
  * ┌─────────────────────────────────────────┐
  * │  userProfile   → بيانات المستخدم       │
@@ -30,224 +27,180 @@
  */
 
 import React, {
-  createContext,  /* لإنشاء الوعاء (Context object) */
-  useContext,     /* لقراءة قيمة الـ Context */
-  useState,       /* لتخزين البيانات القابلة للتغيير */
-  useCallback,    /* لحفظ الدوال وتجنب إعادة إنشائها */
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
 } from 'react';
 import { levelsData as initialLevelsData } from '../data/levels';
+import { supabase } from '../lib/supabaseClient';
 
-/* =====================================================
- * الخطوة 1: إنشاء الـ Context (الوعاء الفارغ)
- * null = القيمة الافتراضية قبل تهيئة الـ Provider
- * ===================================================== */
 const AppContext = createContext(null);
 
-
-/* =====================================================
- * الخطوة 2: AppProvider - المكوّن الغلاف
- * يُحيط بجميع مكونات التطبيق ويوفر البيانات لها
- *
- * الاستخدام في App.jsx:
- * <AppProvider>
- *   <AppContent />  ← يمكنه الوصول لكل البيانات
- * </AppProvider>
- * ===================================================== */
 export function AppProvider({ children }) {
 
-  /* --------------------------------------------------
-   * حالة 1: الصوت (Sound State)
-   * true  = الصوت شغّال
-   * false = الصوت مكتوم
-   * سيُستخدم لاحقاً مع مكتبة صوت مثل Howler.js
-   * -------------------------------------------------- */
+  // ---- حالة الصوت ----
   const [isSoundOn, setIsSoundOn] = useState(true);
 
-  /* --------------------------------------------------
-   * حالة 2: بيانات المستخدم الشخصية
-   *
-   * هذا هو "قلب" البيانات في التطبيق.
-   * في المستقبل مع Supabase، هذه البيانات ستأتي من:
-   * → جدول "profiles" في قاعدة البيانات
-   * → عبر: supabase.from('profiles').select('*').eq('id', userId)
-   * -------------------------------------------------- */
+  // ---- بيانات المستخدم ----
   const [userProfile, setUserProfile] = useState({
-    id:              'user_001',          /* معرّف فريد (UUID في Supabase لاحقاً) */
-    name:            'مكتشف',            /* اسم المستخدم في القائمة */
-    age:             10,                  /* العمر بالسنوات */
-    country:         'مصر',              /* اسم الدولة */
-    countryFlag:     '🇪🇬',             /* إيموجي علم الدولة */
-    email:           'moktashif@email.com', /* البريد الإلكتروني */
-    character:       'boy',               /* الشخصية: 'boy' أو 'girl' */
-    currentLevel:    1,                   /* المستوى الحالي (1-5) */
-    completedStages: 2,                   /* عدد المراحل المنجزة من أصل 25 */
-    totalPoints:     300,                 /* مجموع النقاط المكتسبة */
-    rank:            12,                  /* الترتيب في قائمة المتصدرين */
+    id:              'user_001',
+    name:            'مكتشف',
+    age:             10,
+    country:         'مصر',
+    countryFlag:     '🇪🇬',
+    email:           'moktashif@email.com',
+    character:       'boy',
+    currentLevel:    1,
+    completedStages: 2,
+    totalPoints:     300,
+    rank:            12,
   });
 
-  /* --------------------------------------------------
-   * حالة 2.5: تقدّم المستويات والمراحل (Levels & Stages)
-   *
-   * ⚠️ ملاحظة مهمة عن سبب وجود هذه الحالة:
-   * كانت levelsData تُستورَد سابقاً مباشرة من data/levels.js
-   * واستُخدمت كمصفوفة ثابتة (Static)، فكان فتح/إغلاق أي مرحلة
-   * (isUnlocked / isCompleted) لا يُحدّث الواجهة أبداً لأنها لم
-   * تكن جزءاً من useState. الآن أصبحت levelsData بيانات ابتدائية
-   * (Seed) فقط تُستخدم لتهيئة هذه الحالة القابلة للتغيير،
-   * فتصبح التغييرات (فتح مرحلة/مستوى جديد بعد إكمال السابق) تظهر
-   * فوراً في كل الصفحات (الرئيسية، مراحل المستوى، الاختبار).
-   *
-   * عند الترحيل لـ Supabase مستقبلاً:
-   * هذه الحالة ستُقرأ من جدول "user_progress" بدلاً من الملف الثابت
-   * -------------------------------------------------- */
+  // ---- حالة المستويات والمراحل ----
   const [levels, setLevels] = useState(initialLevelsData);
 
-  /* --------------------------------------------------
-   * حالة 3: نظام التنقل بين الصفحات
-   *
-   * currentPage: اسم الصفحة الحالية المعروضة
-   * الصفحات المتاحة:
-   *   'home'        → الصفحة الرئيسية
-   *   'quiz-group'  → قائمة مراحل المستوى
-   *   'quiz'        → الاختبار الفعلي
-   *   'leaderboard' → قائمة المتصدرين
-   *   'profile'     → الملف الشخصي
-   *
-   * pageData: بيانات إضافية تنتقل مع الصفحة
-   *   مثال عند الانتقال لـ quiz-group:
-   *   pageData = { levelId: 2 }
-   * -------------------------------------------------- */
+  // ---- نظام التنقل ----
   const [currentPage, setCurrentPage] = useState('home');
   const [pageData,    setPageData]    = useState(null);
-
-  /* --------------------------------------------------
-   * حالة 4: سجل التنقل (Navigation History)
-   * مصفوفة تحفظ مسار الصفحات للرجوع للخلف
-   * مثال: ['home', 'quiz-group'] = جاء من home ثم quiz-group
-   * -------------------------------------------------- */
   const [navHistory, setNavHistory] = useState(['home']);
 
+  // =============================================
+  // تحميل المستويات والمراحل من Supabase
+  // =============================================
+  useEffect(() => {
+    async function loadLevels() {
+      try {
+        console.log('🔄 تحميل المستويات والمراحل من Supabase...');
 
-  /* ==================================================
-   * الدوال (Functions) - يمكن استدعاؤها من أي مكوّن
-   * ==================================================
-   *
-   * useCallback: يحفظ الدالة ولا يُعيد إنشاءها في كل
-   * render، إلا إذا تغيرت القيم في مصفوفة التبعيات []
-   * هذا يُحسّن الأداء ويمنع Re-renders غير ضرورية
-   */
+        // 1. جلب المستويات مع مراحلهم
+        const { data: levelsData, error: levelsError } = await supabase
+          .from('levels')
+          .select(`
+            id,
+            name_ar,
+            name_en,
+            difficulty,
+            max_points,
+            stages: stages (
+              id,
+              level_id,
+              title,
+              description,
+              order_index,
+              emoji
+            )
+          `)
+          .order('id');
 
-  /* --------------------------------------------------
-   * toggleSound - تبديل الصوت بين مفعّل/مكتوم
-   * -------------------------------------------------- */
+        if (levelsError) {
+          console.error('❌ خطأ في تحميل المستويات:', levelsError);
+          return;
+        }
+
+        if (!levelsData || levelsData.length === 0) {
+          console.warn('⚠️ لا توجد بيانات مستويات في قاعدة البيانات. استخدم البيانات الثابتة.');
+          return;
+        }
+
+        // 2. تحويل البيانات إلى الشكل المتوقع من المكونات
+        const formattedLevels = levelsData.map(level => {
+          // ترتيب المراحل حسب order_index
+          const stages = (level.stages || [])
+            .sort((a, b) => a.order_index - b.order_index)
+            .map(stage => ({
+              id: stage.id,
+              levelId: stage.level_id,
+              title: stage.title,
+              description: stage.description || '',
+              emoji: stage.emoji || '📚',
+              // حالة المرحلة (مقفولة/مفتوحة/مكتملة) سنحددها لاحقاً
+              isUnlocked: false,
+              isCompleted: false,
+              earnedPoints: 0,
+              unlockCondition: null,
+            }));
+
+          return {
+            id: level.id,
+            nameAr: level.name_ar,
+            nameEn: level.name_en || `Level ${level.id}`,
+            difficulty: level.difficulty,
+            maxPoints: level.max_points || 100,
+            totalStages: stages.length,
+            isUnlocked: level.id === 1, // المستوى الأول مفتوح دائماً
+            earnedPoints: 0,
+            stages: stages,
+            // خصائص إضافية للتنسيق (لن تُستخدم في قاعدة البيانات)
+            iconSrc: `/assets/icons/levels/level-${level.id}.png`,
+            bgColor: '#1B5E2E',
+            headerBg: '#143F20',
+            textColor: '#4ADE80',
+            iconBg: '#0F2D18',
+            badgeBg: '#0F2D18',
+            badgeText: '#86EFAC',
+            quizCount: 10,
+          };
+        });
+
+        // 3. فتح المرحلة الأولى من المستوى الأول
+        if (formattedLevels.length > 0 && formattedLevels[0].stages.length > 0) {
+          formattedLevels[0].stages[0].isUnlocked = true;
+        }
+
+        console.log(`✅ تم تحميل ${formattedLevels.length} مستويات و ${formattedLevels.reduce((acc, l) => acc + l.stages.length, 0)} مراحل.`);
+        setLevels(formattedLevels);
+
+      } catch (error) {
+        console.error('❌ خطأ غير متوقع في تحميل المستويات:', error);
+      }
+    }
+
+    loadLevels();
+  }, []); // [] = يتم التنفيذ مرة واحدة فقط عند تحميل المكون
+
+  // =============================================
+  // الدوال (Functions)
+  // =============================================
+
   const toggleSound = useCallback(() => {
-    /* prev = القيمة الحالية، !prev = عكسها */
     setIsSoundOn(prev => !prev);
-  }, []); /* [] = لا تعتمد على أي متغير خارجي */
+  }, []);
 
-  /* --------------------------------------------------
-   * navigateTo - الانتقال لصفحة جديدة
-   *
-   * @param page {string} - اسم الصفحة المستهدفة
-   * @param data {object} - بيانات إضافية (اختياري)
-   *
-   * مثال الاستخدام:
-   * navigateTo('quiz-group', { levelId: 1 })
-   * -------------------------------------------------- */
   const navigateTo = useCallback((page, data = null) => {
-    /* أضف الصفحة الجديدة لسجل التنقل */
     setNavHistory(prev => [...prev, page]);
-    /* غيّر الصفحة الحالية */
     setCurrentPage(page);
-    /* احفظ البيانات الإضافية */
     setPageData(data);
-    /* ارجع للأعلى عند تغيير الصفحة */
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
-  /* --------------------------------------------------
-   * goBack - الرجوع للصفحة السابقة
-   * يستخدم سجل التنقل لمعرفة الصفحة السابقة
-   * -------------------------------------------------- */
   const goBack = useCallback(() => {
     setNavHistory(prev => {
-      /* إذا كان هناك صفحة سابقة في السجل */
       if (prev.length > 1) {
-        /* أنشئ نسخة جديدة من السجل بدون آخر عنصر */
         const newHistory = [...prev];
-        newHistory.pop(); /* احذف الصفحة الحالية */
-
-        /* الصفحة التي كنّا فيها قبل الحالية */
+        newHistory.pop();
         const prevPage = newHistory[newHistory.length - 1];
         setCurrentPage(prevPage);
         setPageData(null);
         window.scrollTo({ top: 0, behavior: 'instant' });
         return newHistory;
       }
-      /* إذا لم يكن هناك صفحة سابقة، ابقَ في المكان */
       return prev;
     });
   }, []);
 
-  /* --------------------------------------------------
-   * updateUserProfile - تحديث بيانات المستخدم
-   *
-   * @param updates {object} - الحقول المراد تحديثها فقط
-   *
-   * مثال: updateUserProfile({ name: 'اسم جديد' })
-   * النتيجة: يحدّث name فقط، ويحتفظ بكل الحقول الأخرى
-   *
-   * عند الترحيل لـ Supabase:
-   * supabase.from('profiles').update(updates).eq('id', user.id)
-   * -------------------------------------------------- */
   const updateUserProfile = useCallback((updates) => {
-    setUserProfile(prev => ({
-      ...prev,    /* احتفظ بجميع البيانات الحالية (Spread) */
-      ...updates  /* اكتب فوق الحقول المحددة فقط */
-    }));
+    setUserProfile(prev => ({ ...prev, ...updates }));
   }, []);
 
-  /* --------------------------------------------------
-   * addPoints - إضافة نقاط للمستخدم بعد إكمال مرحلة
-   *
-   * @param points {number} - عدد النقاط المُكتسبة
-   *
-   * عند الترحيل لـ Supabase:
-   * supabase.rpc('increment_points', { user_id, points })
-   * -------------------------------------------------- */
   const addPoints = useCallback((points) => {
     setUserProfile(prev => ({
       ...prev,
-      /* اجمع النقاط الحالية مع النقاط الجديدة */
       totalPoints: prev.totalPoints + points
     }));
   }, []);
 
-  /* --------------------------------------------------
-   * completeStage - قلب نظام الانتقال بين المراحل ⭐
-   *
-   * هذه هي الدالة التي كانت مفقودة، وسبب أن إنهاء اختبار
-   * لم يكن يفتح المرحلة التالية أو المستوى التالي تلقائياً.
-   *
-   * @param levelId      {number} - رقم المستوى (1-5)
-   * @param stageId      {number} - رقم المرحلة داخل المستوى (1-5)
-   * @param earnedPoints {number} - النقاط المُكتسبة في هذه المحاولة
-   *
-   * ماذا تفعل بالضبط:
-   * 1) تُعلّم المرحلة الحالية كمكتملة (isCompleted: true)
-   * 2) تحفظ أفضل نتيجة نقاط لهذه المرحلة (لو أعاد المستخدم
-   *    المحاولة بنتيجة أقل، لا نُنقص نقاطه)
-   * 3) أول مرة تُكتمل فيها المرحلة فقط:
-   *    - تفتح المرحلة التالية في نفس المستوى (isUnlocked: true)
-   *    - لو كانت آخر مرحلة في المستوى ← تفتح المستوى التالي
-   *      بالكامل + أول مرحلة فيه
-   *    - تزيد عدّاد completedStages في الملف الشخصي
-   * 4) تُحدّث totalPoints بفارق النقاط فقط (delta) حتى لو
-   *    أعاد المستخدم المحاولة، فلا تُحتسب النقاط مرتين
-   *
-   * عند الترحيل لـ Supabase مستقبلاً:
-   * supabase.rpc('complete_stage', { user_id, levelId, stageId, earnedPoints })
-   * -------------------------------------------------- */
   const completeStage = useCallback((levelId, stageId, earnedPoints) => {
     const level = levels.find(l => l.id === levelId);
     if (!level) return null;
@@ -260,12 +213,10 @@ export function AppProvider({ children }) {
     const bestPoints = Math.max(stage.earnedPoints, earnedPoints);
     const pointsDelta = bestPoints - stage.earnedPoints;
 
-    /* جهّز مصفوفة المراحل الجديدة لهذا المستوى فقط */
     const newStages = level.stages.map((s, idx) => {
       if (idx === stageIndex) {
         return { ...s, isCompleted: true, earnedPoints: bestPoints };
       }
-      /* أول إكمال لهذه المرحلة ← افتح التي تليها مباشرة */
       if (wasFirstCompletion && idx === stageIndex + 1) {
         return { ...s, isUnlocked: true };
       }
@@ -274,7 +225,6 @@ export function AppProvider({ children }) {
 
     const isLastStageOfLevel = stageIndex === newStages.length - 1;
     const allStagesNowCompleted = newStages.every(s => s.isCompleted);
-    /* هل هذا الإكمال يفتح مستوى جديداً بالكامل؟ */
     const justUnlockedLevelId =
       (wasFirstCompletion && isLastStageOfLevel && allStagesNowCompleted)
         ? levelId + 1
@@ -303,12 +253,6 @@ export function AppProvider({ children }) {
         : prev.currentLevel,
     }));
 
-    /* نُرجع ملخصاً تستفيد منه صفحة الاختبار مباشرة:
-     * - هل توجد مرحلة تالية؟ وأين هي بالضبط؟
-     * - هل هذا كان أول إكمال أم إعادة محاولة؟
-     * تساعد هذه المعلومة QuizPage على إظهار زر
-     * "المرحلة التالية" أو "المستوى التالي" فوراً دون
-     * الحاجة للرجوع لقائمة المراحل يدوياً. */
     let nextStage = null;
     if (stageIndex + 1 < level.stages.length) {
       nextStage = { levelId, stageId: level.stages[stageIndex + 1].id };
@@ -322,86 +266,43 @@ export function AppProvider({ children }) {
     return { wasFirstCompletion, pointsDelta, nextStage, isLastStageOverall: !nextStage };
   }, [levels]);
 
-  /* --------------------------------------------------
-   * حساب نسبة التقدم الكلية (0% → 100%)
-   *
-   * المعادلة:
-   * (النقاط المكتسبة ÷ أقصى نقاط ممكنة) × 100
-   *
-   * أقصى نقاط = 5 مستويات × 100 نقطة = 500 نقطة
-   *
-   * Math.min(100, ...) = لضمان عدم تجاوز 100%
-   * Math.round(...)    = لتقريب لأقرب عدد صحيح
-   * -------------------------------------------------- */
-  const MAX_TOTAL_POINTS  = 500;  /* 5 مستويات × 100 نقطة لكل مستوى */
+  const MAX_TOTAL_POINTS  = 500;
   const progressPercentage = Math.min(
     100,
     Math.round((userProfile.totalPoints / MAX_TOTAL_POINTS) * 100)
   );
 
-
-  /* ==================================================
-   * حزمة القيم المُشاركة مع جميع المكوّنات
-   * كل ما يُضاف هنا يصبح متاحاً عبر useApp()
-   * ================================================== */
   const contextValue = {
-    /* بيانات المستخدم */
     userProfile,
     updateUserProfile,
     addPoints,
-
-    /* تقدّم المستويات والمراحل (ديناميكي الآن، وليس ثابتاً) */
     levelsData: levels,
     completeStage,
-
-    /* الصوت */
     isSoundOn,
     toggleSound,
-
-    /* التنقل */
     currentPage,
     pageData,
     navigateTo,
     goBack,
     navHistory,
-
-    /* التقدم */
     progressPercentage,
     MAX_TOTAL_POINTS,
   };
 
   return (
-    /* نُغلّف children بالـ Provider ونمرر له القيم */
     <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );
 }
 
-
-/* =====================================================
- * الخطوة 3: useApp - هوك مخصص للوصول السريع
- *
- * بدلاً من كتابة useContext(AppContext) في كل مكوّن،
- * نكتب useApp() فقط.
- *
- * مثال الاستخدام في أي مكوّن:
- * const { userProfile, navigateTo, isSoundOn } = useApp();
- * ===================================================== */
 export function useApp() {
   const context = useContext(AppContext);
-
-  /*
-   * تحقق مهم للأمان:
-   * إذا استُخدم useApp() خارج AppProvider سنرى خطأ واضحاً
-   * بدلاً من خطأ محيّر "Cannot read property of null"
-   */
   if (!context) {
     throw new Error(
       '❌ useApp() يجب استخدامه داخل <AppProvider> فقط!\n' +
       'راجع ملف App.jsx وتأكد أن المكوّن محاط بـ <AppProvider>'
     );
   }
-
   return context;
 }

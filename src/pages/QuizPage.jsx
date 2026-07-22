@@ -33,10 +33,9 @@
  * pageData = { levelId, stageId } تُمرَّر من QuizGroupPage عبر:
  * navigateTo('quiz', { levelId, stageId })
  *
- * أسئلة كل مرحلة تأتي من src/data/quizzes.js (بيانات وهمية
- * حالياً — راجع خطوة "إضافة الأسئلة الحقيقية في ملفات JSON"
- * القادمة في README.md). لو مرحلة معينة لسه مفيش لها أسئلة في
- * quizzes.js، تظهر شاشة "غير متاح بعد" بدل أي خطأ في الكود.
+ * أسئلة كل مرحلة تُقرأ من Supabase (جدول questions) باستخدام stage_id.
+ * لو مرحلة معينة لسه مفيش لها أسئلة في قاعدة البيانات، تظهر شاشة
+ * "غير متاح بعد" بدل أي خطأ في الكود.
  *
  * حساب النقاط:
  * ─────────────────────────────────────────────
@@ -63,12 +62,12 @@
  * =====================================================
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppWrapper        from '../components/layout/AppWrapper';
 import Header            from '../components/layout/Header';
 import ExplorerCharacter from '../components/shared/ExplorerCharacter';
 import { useApp }        from '../context/AppContext';
-import { quizzesData }   from '../data/quizzes';
+import { supabase }      from '../lib/supabaseClient';
 
 
 /*
@@ -159,8 +158,64 @@ function QuizPage() {
   const currentLevel = levelsData.find(l => l.id === levelId) || levelsData[0];
   const currentStage = currentLevel.stages.find(s => s.id === stageId) || currentLevel.stages[0];
 
-  /* نجد أسئلة هذه المرحلة تحديداً في quizzes.js */
-  const quiz = quizzesData.find(q => q.levelId === levelId && q.stageId === stageId);
+  /* --------------------------------------------------
+   * حالة الأسئلة - تُحمَّل من Supabase
+   * -------------------------------------------------- */
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  /* تحميل الأسئلة من قاعدة البيانات عند تغيير stageId */
+  useEffect(() => {
+    async function loadQuestions() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log(`🔄 تحميل أسئلة المرحلة ${stageId}...`);
+
+        const { data, error: fetchError } = await supabase
+          .from('questions')
+          .select('*')
+          .eq('stage_id', stageId)
+          .order('id');
+
+        if (fetchError) {
+          console.error('❌ خطأ في تحميل الأسئلة:', fetchError);
+          setError(fetchError.message);
+          setQuestions([]);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          console.warn(`⚠️ لا توجد أسئلة للمرحلة ${stageId} في قاعدة البيانات.`);
+          setQuestions([]);
+          return;
+        }
+
+        // تحويل البيانات إلى الشكل المتوقع من المكون
+        const formattedQuestions = data.map((q) => ({
+          id: q.id,
+          question: q.question,
+          options: q.options || [],
+          correctIndex: q.correct_index,
+          explanation: q.explanation || '',
+        }));
+
+        console.log(`✅ تم تحميل ${formattedQuestions.length} سؤال للمرحلة ${stageId}`);
+        setQuestions(formattedQuestions);
+
+      } catch (err) {
+        console.error('❌ خطأ غير متوقع:', err);
+        setError(err.message);
+        setQuestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadQuestions();
+  }, [stageId]); // يُعاد التحميل عند تغيير stageId
 
 
   /* --------------------------------------------------
@@ -184,13 +239,73 @@ function QuizPage() {
 
   /*
    * ===================================================
+   * حالة التحميل: جاري تحميل الأسئلة من Supabase
+   * ===================================================
+   */
+  if (loading) {
+    return (
+      <AppWrapper>
+        <Header showBack={true} onBack={goBack} />
+        <main
+          className="flex-1 flex flex-col items-center justify-center gap-4 px-8 text-center"
+          style={{ paddingBottom: '48px' }}
+        >
+          <div
+            className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin"
+            style={{ borderColor: '#C8922A', borderTopColor: 'transparent' }}
+          />
+          <p
+            className="text-sm font-semibold"
+            style={{ fontFamily: "'Cairo', sans-serif", color: '#8B5A2B' }}
+          >
+            جاري تحميل الأسئلة...
+          </p>
+        </main>
+      </AppWrapper>
+    );
+  }
+
+  /*
+   * ===================================================
+   * حالة الخطأ: حدث خطأ في جلب الأسئلة
+   * ===================================================
+   */
+  if (error) {
+    return (
+      <AppWrapper>
+        <Header showBack={true} onBack={goBack} />
+        <main
+          className="flex-1 flex flex-col items-center justify-center gap-3 px-8 text-center"
+          style={{ paddingBottom: '48px' }}
+        >
+          <i className="fi fi-rr-exclamation" aria-hidden="true" style={{ fontSize: '46px', color: '#DC2626' }} />
+          <h2 className="font-black text-xl" style={{ fontFamily: "'Cairo', sans-serif", color: '#3D2B1F' }}>
+            حدث خطأ في تحميل الأسئلة
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif", color: '#8B5A2B' }}>
+            {error}
+          </p>
+          <button
+            onClick={goBack}
+            className="mt-2 px-6 py-3 rounded-2xl font-bold text-white press-effect no-tap-highlight"
+            style={{ backgroundColor: '#2D6A3F', fontFamily: "'Cairo', sans-serif" }}
+          >
+            الرجوع لقائمة المراحل
+          </button>
+        </main>
+      </AppWrapper>
+    );
+  }
+
+  /*
+   * ===================================================
    * حالة خاصة: لا توجد أسئلة لهذه المرحلة بعد
    * ===================================================
    * يحدث هذا لو أضفت مرحلة جديدة في levels.js وفتحتها
-   * (isUnlocked: true) قبل ما تضيف أسئلتها في quizzes.js.
+   * (isUnlocked: true) قبل ما تضيف أسئلتها في قاعدة البيانات.
    * بدل ما تنهار الصفحة، نعرض رسالة واضحة ونرجّعه بأمان.
    */
-  if (!quiz) {
+  if (!questions || questions.length === 0) {
     return (
       <AppWrapper>
         <Header showBack={true} onBack={goBack} />
@@ -221,7 +336,6 @@ function QuizPage() {
   /* --------------------------------------------------
    * قيم مُشتقة (Derived Values) - تُحسب من الحالة الحالية
    * -------------------------------------------------- */
-  const questions       = quiz.questions;
   const totalQuestions  = questions.length || 1;
   const question        = questions[currentQuestionIndex];
   const isAnswered       = selectedIndex !== null;
@@ -589,12 +703,14 @@ function QuizPage() {
                       : `إجابة خاطئة، الصحيحة: ${question.options[question.correctIndex]}`}
                   </span>
                 </div>
-                <p
-                  className="text-xs leading-relaxed"
-                  style={{ fontFamily: "'Cairo', sans-serif", color: '#8B5A2B' }}
-                >
-                  {question.explanation}
-                </p>
+                {question.explanation && (
+                  <p
+                    className="text-xs leading-relaxed"
+                    style={{ fontFamily: "'Cairo', sans-serif", color: '#8B5A2B' }}
+                  >
+                    {question.explanation}
+                  </p>
+                )}
               </div>
 
               <button

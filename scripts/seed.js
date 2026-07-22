@@ -15,6 +15,19 @@ const supabase = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
+async function testConnection() {
+  console.log('🔍 اختبار الاتصال: محاولة قراءة البيانات من جدول levels...');
+  const { data, error } = await supabase.from('levels').select('*').limit(1);
+  if (error) {
+    console.error('❌ فشلت القراءة:', error);
+  } else {
+    console.log('✅ نجحت القراءة! عدد الصفوف الموجودة:', data?.length || 0);
+  }
+}
+
+// استدعِ الدالة قبل seedDatabase
+await testConnection();
+
 async function seedDatabase() {
   console.log('🔄 بدء رفع البيانات إلى Supabase...\n');
 

@@ -1,6 +1,8 @@
 // scripts/seed.js
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
+console.log('🔑 طول المفتاح السري:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length);
+console.log('🔑 أول 10 حروف:', process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10));
 import { levelsData } from '../src/data/levels.js';
 import { quizzesData } from '../src/data/quizzes.js';
 

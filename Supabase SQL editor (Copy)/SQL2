@@ -1,0 +1,4 @@
+-- أضف سياسة تسمح لأي شخص بالإدراج في جداول البيانات العامة (مؤقت)
+CREATE POLICY "Allow all inserts for seed" ON levels FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow all inserts for seed" ON stages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow all inserts for seed" ON questions FOR INSERT WITH CHECK (true);

@@ -1,0 +1,75 @@
+-- 1. حذف الجداول لو موجودة (عشان نبدأ من صفر من غير أخطاء)
+DROP TABLE IF EXISTS user_progress CASCADE;
+DROP TABLE IF EXISTS questions CASCADE;
+DROP TABLE IF EXISTS stages CASCADE;
+DROP TABLE IF EXISTS levels CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+
+-- 2. إنشاء الجداول من جديد
+CREATE TABLE profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username text,
+  character text DEFAULT 'boy',
+  total_points integer DEFAULT 0
+);
+
+CREATE TABLE levels (
+  id integer PRIMARY KEY,
+  name_ar text NOT NULL,
+  difficulty text,
+  max_points integer
+);
+
+CREATE TABLE stages (
+  id integer PRIMARY KEY,
+  level_id integer REFERENCES levels(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  order_index integer
+);
+
+CREATE TABLE questions (
+  id integer PRIMARY KEY,
+  stage_id integer REFERENCES stages(id) ON DELETE CASCADE,
+  question text NOT NULL,
+  options jsonb NOT NULL,
+  correct_index integer NOT NULL
+);
+
+CREATE TABLE user_progress (
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE,
+  stage_id integer REFERENCES stages(id) ON DELETE CASCADE,
+  is_completed boolean DEFAULT false,
+  best_score integer,
+  PRIMARY KEY (user_id, stage_id)
+);
+
+-- 3. تفعيل نظام الأمان (RLS) على كل الجداول
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE levels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_progress ENABLE ROW LEVEL SECURITY;
+
+-- 4. حذف أي سياسات قديمة (لو كانت موجودة) عشان نتجنب الأخطاء
+DROP POLICY IF EXISTS "Public levels read" ON levels;
+DROP POLICY IF EXISTS "Public stages read" ON stages;
+DROP POLICY IF EXISTS "Public questions read" ON questions;
+DROP POLICY IF EXISTS "Users select own profile" ON profiles;
+DROP POLICY IF EXISTS "Users insert own profile" ON profiles;
+DROP POLICY IF EXISTS "Users update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users select own progress" ON user_progress;
+DROP POLICY IF EXISTS "Users insert own progress" ON user_progress;
+DROP POLICY IF EXISTS "Users update own progress" ON user_progress;
+
+-- 5. إنشاء السياسات الجديدة (بدون IF NOT EXISTS)
+CREATE POLICY "Public levels read" ON levels FOR SELECT USING (true);
+CREATE POLICY "Public stages read" ON stages FOR SELECT USING (true);
+CREATE POLICY "Public questions read" ON questions FOR SELECT USING (true);
+
+CREATE POLICY "Users select own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users select own progress" ON user_progress FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own progress" ON user_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own progress" ON user_progress FOR UPDATE USING (auth.uid() = user_id);

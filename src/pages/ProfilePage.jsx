@@ -19,7 +19,7 @@ import ExplorerCharacter from '../components/shared/ExplorerCharacter';
 import { useApp }        from '../context/AppContext';
 
 /* مكوّن صغير لحقل البيانات الشخصية مع زر التعديل */
-function ProfileField({ icon, label, value, onEdit }) {
+function ProfileField({ icon, iconColor, label, value, onEdit }) {
   return (
     <div
       className="flex items-center gap-3 py-3"
@@ -38,9 +38,9 @@ function ProfileField({ icon, label, value, onEdit }) {
         <i className="fi fi-rr-pencil" aria-hidden="true" style={{ fontSize: '14px', color: '#8B5A2B' }} />
       </button>
 
-      {/* اسم الحقل */}
+      {/* اسم الحقل — أيقونة Flaticon Uicons ملوّنة بدلاً من صورة PNG فارغة */}
       <div className="flex items-center gap-2 w-24 flex-shrink-0">
-        <img src={icon} alt="" width={16} height={16} />
+        <i className={`fi ${icon}`} aria-hidden="true" style={{ fontSize: '15px', color: iconColor }} />
         <span
           className="font-semibold text-sm"
           style={{ fontFamily: "'Cairo', sans-serif", color: '#8B4513' }}
@@ -61,13 +61,23 @@ function ProfileField({ icon, label, value, onEdit }) {
 }
 
 /* مكوّن صغير لبطاقة الإحصائية */
-function StatCard({ icon, value, label }) {
+function StatCard({ icon, iconColor, value, label }) {
   return (
     <div
       className="flex flex-col items-center gap-1 p-3 rounded-2xl"
       style={{ backgroundColor: '#FDF3E3', border: '1px solid rgba(200,146,42,0.2)' }}
     >
-      <img src={icon} alt="" width={24} height={24} />
+      {/* أيقونة Flaticon Uicons (نمط solid) بألوان مميزة بدلاً من صورة PNG فارغة */}
+      <div
+        className="w-9 h-9 rounded-full flex items-center justify-center mb-0.5"
+        style={{ backgroundColor: `${iconColor}1A` /* خلفية شفافة بلون الأيقونة نفسه */ }}
+      >
+        <i
+          className={`fi ${icon}`}
+          aria-hidden="true"
+          style={{ fontSize: '18px', color: iconColor, filter: `drop-shadow(0 1px 2px ${iconColor}4D)` }}
+        />
+      </div>
       <span
         className="font-black text-xl"
         style={{ fontFamily: "'Cairo', sans-serif", color: '#3D2B1F' }}
@@ -179,8 +189,13 @@ function ProfilePage() {
                 اختر الشخصية التي تمثلك في رحلتك
               </p>
             </div>
-            {/* 🖼️ صورة مطلوبة: /assets/icons/profile/character-select.png (28×28px) */}
-            <img src="/assets/icons/profile/character-select.png" alt="" width={28} height={28} />
+            {/* أيقونة Flaticon Uicons (fi fi-rr-users) بدلاً من صورة PNG فارغة */}
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'rgba(45,106,63,0.1)' }}
+            >
+              <i className="fi fi-rr-users" aria-hidden="true" style={{ fontSize: '17px', color: '#2D6A3F' }} />
+            </div>
           </div>
 
           {/* خيارات الشخصية */}
@@ -257,36 +272,34 @@ function ProfilePage() {
             >
               البيانات الشخصية
             </h2>
-            {/* 🖼️ صورة مطلوبة: /assets/icons/profile/personal-data.png (24×24px) */}
-            <img src="/assets/icons/profile/personal-data.png" alt="" width={24} height={24} />
+            {/* أيقونة Flaticon Uicons (fi fi-rr-id-badge) بدلاً من صورة PNG فارغة */}
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'rgba(200,146,42,0.12)' }}
+            >
+              <i className="fi fi-rr-id-badge" aria-hidden="true" style={{ fontSize: '15px', color: '#C8922A' }} />
+            </div>
           </div>
 
-          {/* حقول البيانات */}
-          {/*
-            * 🖼️ صور مطلوبة لحقول البيانات الشخصية (16×16px لكل منها):
-            *   - /assets/icons/profile/field-name.png
-            *   - /assets/icons/profile/field-age.png
-            *   - /assets/icons/profile/field-country.png
-            *   - /assets/icons/profile/field-email.png
-            */}
+          {/* حقول البيانات — أيقونات Flaticon Uicons ملوّنة بدلاً من صور PNG فارغة */}
           <ProfileField
-            icon="/assets/icons/profile/field-name.png"  label="الاسم"
+            icon="fi-rr-user" iconColor="#C8922A" label="الاسم"
             value={userProfile.name}
             onEdit={() => startEditing('name', userProfile.name)}
           />
           <ProfileField
-            icon="/assets/icons/profile/field-age.png"  label="العمر"
+            icon="fi-rr-cake-birthday" iconColor="#C8922A" label="العمر"
             value={`${userProfile.age} سنوات`}
             onEdit={() => startEditing('age', String(userProfile.age))}
           />
           <ProfileField
-            icon="/assets/icons/profile/field-country.png"  label="الدولة"
+            icon="fi-rr-flag" iconColor="#C8922A" label="الدولة"
             value={`${userProfile.countryFlag} ${userProfile.country}`}
             onEdit={() => startEditing('country', userProfile.country)}
           />
           <div style={{ borderBottom: 'none' }}>
             <ProfileField
-              icon="/assets/icons/profile/field-email.png"  label="البريد"
+              icon="fi-rr-envelope" iconColor="#C8922A" label="البريد"
               value={userProfile.email}
               onEdit={() => startEditing('email', userProfile.email)}
             />
@@ -306,22 +319,21 @@ function ProfilePage() {
             >
               إحصائياتي
             </h2>
-            {/* 🖼️ صورة مطلوبة: /assets/icons/profile/stats-icon.png (22×22px) */}
-            <img src="/assets/icons/profile/stats-icon.png" alt="" width={22} height={22} />
+            {/* أيقونة Flaticon Uicons (fi fi-rr-chart-histogram) بدلاً من صورة PNG فارغة */}
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'rgba(200,146,42,0.12)' }}
+            >
+              <i className="fi fi-rr-chart-histogram" aria-hidden="true" style={{ fontSize: '14px', color: '#C8922A' }} />
+            </div>
           </div>
 
-          {/*
-            * 🖼️ صور مطلوبة لبطاقات الإحصائيات (24×24px لكل منها):
-            *   - /assets/icons/profile/stat-points.png
-            *   - /assets/icons/profile/stat-rank.png
-            *   - /assets/icons/profile/stat-stages.png
-            *   - /assets/icons/profile/stat-level.png
-            */}
+          {/* بطاقات الإحصائيات — أيقونات Flaticon Uicons (نمط solid) ملوّنة بدلاً من صور PNG فارغة */}
           <div className="grid grid-cols-4 gap-2">
-            <StatCard icon="/assets/icons/profile/stat-points.png" value={userProfile.totalPoints}     label="إجمالي النقاط"    />
-            <StatCard icon="/assets/icons/profile/stat-rank.png"   value={userProfile.rank}            label="الترتيب الحالي"   />
-            <StatCard icon="/assets/icons/profile/stat-stages.png" value={userProfile.completedStages} label="المراحل المكتملة" />
-            <StatCard icon="/assets/icons/profile/stat-level.png"  value={userProfile.currentLevel}    label="المستوى الحالي"  />
+            <StatCard icon="fi-sr-star"          iconColor="#C8922A" value={userProfile.totalPoints}     label="إجمالي النقاط"    />
+            <StatCard icon="fi-sr-crown"         iconColor="#B8860B" value={userProfile.rank}            label="الترتيب الحالي"   />
+            <StatCard icon="fi-sr-flag-checkered" iconColor="#2D6A3F" value={userProfile.completedStages} label="المراحل المكتملة" />
+            <StatCard icon="fi-sr-level-up"      iconColor="#1A7F8E" value={userProfile.currentLevel}    label="المستوى الحالي"  />
           </div>
         </div>
 

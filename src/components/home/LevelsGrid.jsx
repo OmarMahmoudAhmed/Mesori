@@ -20,10 +20,12 @@
  */
 
 import React from 'react';
-import LevelCard      from './LevelCard';
-import { levelsData } from '../../data/levels';
+import LevelCard  from './LevelCard';
+import { useApp } from '../../context/AppContext';
 
 function LevelsGrid() {
+
+  const { levelsData } = useApp();
 
   /*
    * نقسم المستويات إلى صفّين:

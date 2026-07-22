@@ -51,15 +51,15 @@
  * الوحيد أثناء الأسئلة، وهو محمي بنافذة تأكيد (showExitConfirm)
  * حتى لا يفقد المستخدم تقدمه بضغطة واحدة بالخطأ.
  *
- * ⚠️ ما لم تفعله هذه الصفحة عمداً:
- * لا تُقفل/تفتح المراحل تلقائياً في levels.js بعد إكمال الاختبار
- * (isUnlocked / isCompleted تبقى كما هي). السبب: levelsData حالياً
- * مصفوفة ثابتة تُستورَد مباشرة، مش جزء من useState في Context،
- * فتعديلها هنا لن يُحدّث الواجهة بشكل صحيح، وربط ذلك بنظام تقدم
- * حقيقي هو تحديداً خطوة "نظام النقاط والمكافآت" القادمة في الخطة.
- * ما يحدث فعلاً الآن: addPoints() من AppContext تُستدعى وتُحدّث
- * userProfile.totalPoints (وتظهر فوراً في ProgressSection بالصفحة
- * الرئيسية).
+ * الانتقال بين المراحل والمستويات:
+ * ─────────────────────────────────────────────
+ * عند إكمال آخر سؤال، تُستدعى completeStage() من AppContext
+ * (بدلاً من addPoints() فقط كما كان سابقاً). هذه الدالة:
+ * - تُعلّم المرحلة كمكتملة، وتفتح المرحلة التالية تلقائياً
+ * - لو كانت آخر مرحلة في المستوى، تفتح المستوى التالي بالكامل
+ * - تُرجع أين تقع "المرحلة التالية" بالضبط، فتظهر شاشة النتيجة
+ *   زر "المرحلة التالية →" يأخذ المستخدم إليها مباشرة دون
+ *   الحاجة للرجوع لقائمة المراحل يدوياً في كل مرة
  * =====================================================
  */
 
@@ -68,7 +68,6 @@ import AppWrapper        from '../components/layout/AppWrapper';
 import Header            from '../components/layout/Header';
 import ExplorerCharacter from '../components/shared/ExplorerCharacter';
 import { useApp }        from '../context/AppContext';
-import { levelsData }    from '../data/levels';
 import { quizzesData }   from '../data/quizzes';
 
 
@@ -145,11 +144,12 @@ function QuizPage() {
    * نجلب من Context:
    * pageData     = { levelId, stageId } المُمررة من QuizGroupPage
    * userProfile  = لعرض شخصية المستخدم في شاشة النتيجة
-   * navigateTo   = للانتقال لصفحة اختيار المرحلة بعد الانتهاء
+   * navigateTo   = للانتقال لصفحة اختيار المرحلة أو المرحلة التالية
    * goBack       = للرجوع الفعلي بعد تأكيد الخروج
-   * addPoints    = لإضافة النقاط المكتسبة لرصيد المستخدم
+   * levelsData   = بيانات المستويات/المراحل (ديناميكية الآن)
+   * completeStage= إنهاء المرحلة + فتح التالية + تحديث النقاط
    */
-  const { pageData, userProfile, navigateTo, goBack, addPoints } = useApp();
+  const { pageData, userProfile, navigateTo, goBack, levelsData, completeStage } = useApp();
 
   /* احتياطياً: لو دخل حد الصفحة من غير pageData صحيحة، نفترض المرحلة الأولى */
   const levelId = pageData?.levelId ?? 1;
@@ -177,6 +177,9 @@ function QuizPage() {
   const [correctCount,         setCorrectCount]         = useState(0);
   const [isFinished,           setIsFinished]           = useState(false);
   const [showExitConfirm,      setShowExitConfirm]      = useState(false);
+  /* نتيجة completeStage بعد إنهاء الاختبار: تحمل معلومة "أين المرحلة
+   * التالية بالضبط؟" حتى تقدر شاشة النتيجة تعرض زر ينقل إليها مباشرة */
+  const [completionResult,     setCompletionResult]     = useState(null);
 
 
   /*
@@ -271,8 +274,14 @@ function QuizPage() {
        * correctCount هنا محدّثة بالفعل وتشمل السؤال الأخير،
        * لأن اختيار الإجابة (handleSelectOption) يحدث في ضغطة
        * منفصلة وسابقة لظهور زر "عرض النتيجة" أصلاً
+       *
+       * completeStage() تُنجز كل شيء دفعة واحدة: تُسجّل المرحلة
+       * كمكتملة، تضيف النقاط (دون احتساب مضاعف عند إعادة المحاولة)،
+       * وتفتح المرحلة/المستوى التالي تلقائياً — وتُرجع لنا مكان
+       * "التالي" بالضبط لنعرض له زراً مباشراً في شاشة النتيجة.
        */
-      addPoints(correctCount * pointsPerQuestion);
+      const result = completeStage(levelId, stageId, correctCount * pointsPerQuestion);
+      setCompletionResult(result);
       setIsFinished(true);
     } else {
       setCurrentQuestionIndex(prev => prev + 1);
@@ -289,11 +298,23 @@ function QuizPage() {
     setSelectedIndex(null);
     setCorrectCount(0);
     setIsFinished(false);
+    setCompletionResult(null);
   };
 
   /* العودة لقائمة مراحل نفس المستوى */
   const handleBackToStages = () => {
     navigateTo('quiz-group', { levelId });
+  };
+
+  /*
+   * handleGoToNext - الانتقال مباشرة للمرحلة (أو المستوى) التالي
+   * دون المرور بقائمة المراحل، وهذا بالضبط الانتقال "من اختبار
+   * لاختبار" و"من مرحلة لمرحلة" الذي كان مفقوداً سابقاً.
+   */
+  const handleGoToNext = () => {
+    if (completionResult?.nextStage) {
+      navigateTo('quiz', completionResult.nextStage);
+    }
   };
 
   /*
@@ -319,11 +340,16 @@ function QuizPage() {
    * رسالة شاشة النتيجة - تختلف حسب نسبة الإجابات الصحيحة
    * -------------------------------------------------- */
   const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
+  const justFinishedEverything = completionResult?.isLastStageOverall && completionResult?.wasFirstCompletion;
   const resultMessage =
+    justFinishedEverything  ? 'أسطوري! أكملت رحلتك بالكامل عبر تاريخ مصر القديمة! 🏆' :
     scorePercentage === 100 ? 'ممتاز! أنت مؤرخ مصري حقيقي!' :
     scorePercentage >= 70   ? 'أحسنت! معرفتك بتاريخ مصر القديمة رائعة!' :
     scorePercentage >= 40   ? 'جيد! استمر في التعلم واكتشف المزيد!' :
                                'لا بأس، حاول مرة أخرى وستتحسن بالتأكيد!';
+
+  /* هل المرحلة التالية تقع في مستوى جديد كلياً؟ (يستحق تسمية مختلفة للزر) */
+  const nextIsNewLevel = completionResult?.nextStage && completionResult.nextStage.levelId !== levelId;
 
   const finalPoints = correctCount * pointsPerQuestion;
 
@@ -400,6 +426,27 @@ function QuizPage() {
                 +{finalPoints} نقطة
               </span>
             </div>
+
+            {/* زر الانتقال المباشر للمرحلة أو المستوى التالي (عند توفره) */}
+            {completionResult?.nextStage && (
+              <button
+                onClick={handleGoToNext}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white press-effect no-tap-highlight mb-3"
+                style={{ backgroundColor: '#C8922A', fontFamily: "'Cairo', sans-serif" }}
+              >
+                <span>{nextIsNewLevel ? 'الانتقال للمستوى التالي' : 'المرحلة التالية'}</span>
+                <i className="fi fi-rr-arrow-small-right" aria-hidden="true" style={{ fontSize: '14px' }} />
+              </button>
+            )}
+
+            {justFinishedEverything && (
+              <p
+                className="text-xs text-center mb-3 px-4"
+                style={{ fontFamily: "'Cairo', sans-serif", color: '#8B5A2B' }}
+              >
+                أكملت كل المستويات الخمسة و25 مرحلة! يمكنك إعادة أي مرحلة من قائمة المراحل لتحسين نتيجتك.
+              </p>
+            )}
 
             {/* أزرار الإجراءات */}
             <div className="w-full flex gap-3">

@@ -21,21 +21,30 @@ import { leaderboardData } from '../data/leaderboard';
 
 /*
  * مكوّن صغير لأيقونة الكوب حسب نوعه
- * 🖼️ صور مطلوبة (28×28px لكل منها):
- *   - /assets/icons/leaderboard/trophy-gold.png
- *   - /assets/icons/leaderboard/trophy-silver.png
- *   - /assets/icons/leaderboard/trophy-bronze.png
+ * أيقونات Flaticon Uicons (نمط solid) بدلاً من صور PNG فارغة:
+ * ميدالية مذهّبة/فضية/برونزية لكل مركز، بلون وظل (drop-shadow)
+ * مناسبين — بنفس أسلوب أيقونات BottomNav.jsx
  */
+const TROPHY_STYLES = {
+  gold:   { iconClass: 'fi-sr-first-medal',  color: '#F5B700', label: 'المركز الأول'  },
+  silver: { iconClass: 'fi-sr-second-medal', color: '#A8A8B3', label: 'المركز الثاني' },
+  bronze: { iconClass: 'fi-sr-third-medal',  color: '#CD7F32', label: 'المركز الثالث' },
+};
+
 function TrophyIcon({ type }) {
-  if (!type) return null;
+  if (!type || !TROPHY_STYLES[type]) return null;
+  const { iconClass, color, label } = TROPHY_STYLES[type];
 
   return (
-    <img
-      src={`/assets/icons/leaderboard/trophy-${type}.png`}
-      alt={type === 'gold' ? 'المركز الأول' : type === 'silver' ? 'المركز الثاني' : 'المركز الثالث'}
-      width={28}
-      height={28}
-      style={{ objectFit: 'contain' }}
+    <i
+      className={`fi ${iconClass}`}
+      role="img"
+      aria-label={label}
+      style={{
+        fontSize: '28px',
+        color,
+        filter: `drop-shadow(0 2px 3px ${color}66)`,
+      }}
     />
   );
 }

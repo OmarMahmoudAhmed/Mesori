@@ -14,6 +14,8 @@
  * خارطة البيانات المُدارة هنا:
  * ┌─────────────────────────────────────────┐
  * │  userProfile   → بيانات المستخدم       │
+ * │  levelsData    → تقدّم المستويات/المراحل│
+ * │  completeStage()→ إنهاء مرحلة + فتح التالية│
  * │  isSoundOn     → حالة الصوت            │
  * │  currentPage   → الصفحة الحالية        │
  * │  pageData      → بيانات الصفحة         │
@@ -33,6 +35,7 @@ import React, {
   useState,       /* لتخزين البيانات القابلة للتغيير */
   useCallback,    /* لحفظ الدوال وتجنب إعادة إنشائها */
 } from 'react';
+import { levelsData as initialLevelsData } from '../data/levels';
 
 /* =====================================================
  * الخطوة 1: إنشاء الـ Context (الوعاء الفارغ)
@@ -81,6 +84,23 @@ export function AppProvider({ children }) {
     totalPoints:     300,                 /* مجموع النقاط المكتسبة */
     rank:            12,                  /* الترتيب في قائمة المتصدرين */
   });
+
+  /* --------------------------------------------------
+   * حالة 2.5: تقدّم المستويات والمراحل (Levels & Stages)
+   *
+   * ⚠️ ملاحظة مهمة عن سبب وجود هذه الحالة:
+   * كانت levelsData تُستورَد سابقاً مباشرة من data/levels.js
+   * واستُخدمت كمصفوفة ثابتة (Static)، فكان فتح/إغلاق أي مرحلة
+   * (isUnlocked / isCompleted) لا يُحدّث الواجهة أبداً لأنها لم
+   * تكن جزءاً من useState. الآن أصبحت levelsData بيانات ابتدائية
+   * (Seed) فقط تُستخدم لتهيئة هذه الحالة القابلة للتغيير،
+   * فتصبح التغييرات (فتح مرحلة/مستوى جديد بعد إكمال السابق) تظهر
+   * فوراً في كل الصفحات (الرئيسية، مراحل المستوى، الاختبار).
+   *
+   * عند الترحيل لـ Supabase مستقبلاً:
+   * هذه الحالة ستُقرأ من جدول "user_progress" بدلاً من الملف الثابت
+   * -------------------------------------------------- */
+  const [levels, setLevels] = useState(initialLevelsData);
 
   /* --------------------------------------------------
    * حالة 3: نظام التنقل بين الصفحات
@@ -204,6 +224,105 @@ export function AppProvider({ children }) {
   }, []);
 
   /* --------------------------------------------------
+   * completeStage - قلب نظام الانتقال بين المراحل ⭐
+   *
+   * هذه هي الدالة التي كانت مفقودة، وسبب أن إنهاء اختبار
+   * لم يكن يفتح المرحلة التالية أو المستوى التالي تلقائياً.
+   *
+   * @param levelId      {number} - رقم المستوى (1-5)
+   * @param stageId      {number} - رقم المرحلة داخل المستوى (1-5)
+   * @param earnedPoints {number} - النقاط المُكتسبة في هذه المحاولة
+   *
+   * ماذا تفعل بالضبط:
+   * 1) تُعلّم المرحلة الحالية كمكتملة (isCompleted: true)
+   * 2) تحفظ أفضل نتيجة نقاط لهذه المرحلة (لو أعاد المستخدم
+   *    المحاولة بنتيجة أقل، لا نُنقص نقاطه)
+   * 3) أول مرة تُكتمل فيها المرحلة فقط:
+   *    - تفتح المرحلة التالية في نفس المستوى (isUnlocked: true)
+   *    - لو كانت آخر مرحلة في المستوى ← تفتح المستوى التالي
+   *      بالكامل + أول مرحلة فيه
+   *    - تزيد عدّاد completedStages في الملف الشخصي
+   * 4) تُحدّث totalPoints بفارق النقاط فقط (delta) حتى لو
+   *    أعاد المستخدم المحاولة، فلا تُحتسب النقاط مرتين
+   *
+   * عند الترحيل لـ Supabase مستقبلاً:
+   * supabase.rpc('complete_stage', { user_id, levelId, stageId, earnedPoints })
+   * -------------------------------------------------- */
+  const completeStage = useCallback((levelId, stageId, earnedPoints) => {
+    const level = levels.find(l => l.id === levelId);
+    if (!level) return null;
+
+    const stageIndex = level.stages.findIndex(s => s.id === stageId);
+    if (stageIndex === -1) return null;
+
+    const stage = level.stages[stageIndex];
+    const wasFirstCompletion = !stage.isCompleted;
+    const bestPoints = Math.max(stage.earnedPoints, earnedPoints);
+    const pointsDelta = bestPoints - stage.earnedPoints;
+
+    /* جهّز مصفوفة المراحل الجديدة لهذا المستوى فقط */
+    const newStages = level.stages.map((s, idx) => {
+      if (idx === stageIndex) {
+        return { ...s, isCompleted: true, earnedPoints: bestPoints };
+      }
+      /* أول إكمال لهذه المرحلة ← افتح التي تليها مباشرة */
+      if (wasFirstCompletion && idx === stageIndex + 1) {
+        return { ...s, isUnlocked: true };
+      }
+      return s;
+    });
+
+    const isLastStageOfLevel = stageIndex === newStages.length - 1;
+    const allStagesNowCompleted = newStages.every(s => s.isCompleted);
+    /* هل هذا الإكمال يفتح مستوى جديداً بالكامل؟ */
+    const justUnlockedLevelId =
+      (wasFirstCompletion && isLastStageOfLevel && allStagesNowCompleted)
+        ? levelId + 1
+        : null;
+
+    setLevels(prevLevels => prevLevels.map(lv => {
+      if (lv.id === levelId) {
+        return { ...lv, stages: newStages, earnedPoints: lv.earnedPoints + pointsDelta };
+      }
+      if (justUnlockedLevelId && lv.id === justUnlockedLevelId && lv.stages.length > 0) {
+        return {
+          ...lv,
+          isUnlocked: true,
+          stages: lv.stages.map((s, idx) => idx === 0 ? { ...s, isUnlocked: true } : s),
+        };
+      }
+      return lv;
+    }));
+
+    setUserProfile(prev => ({
+      ...prev,
+      totalPoints:     prev.totalPoints + pointsDelta,
+      completedStages: wasFirstCompletion ? prev.completedStages + 1 : prev.completedStages,
+      currentLevel:    justUnlockedLevelId
+        ? Math.min(levels.length, Math.max(prev.currentLevel, justUnlockedLevelId))
+        : prev.currentLevel,
+    }));
+
+    /* نُرجع ملخصاً تستفيد منه صفحة الاختبار مباشرة:
+     * - هل توجد مرحلة تالية؟ وأين هي بالضبط؟
+     * - هل هذا كان أول إكمال أم إعادة محاولة؟
+     * تساعد هذه المعلومة QuizPage على إظهار زر
+     * "المرحلة التالية" أو "المستوى التالي" فوراً دون
+     * الحاجة للرجوع لقائمة المراحل يدوياً. */
+    let nextStage = null;
+    if (stageIndex + 1 < level.stages.length) {
+      nextStage = { levelId, stageId: level.stages[stageIndex + 1].id };
+    } else if (level.stages.length === stageIndex + 1) {
+      const nextLevel = levels.find(l => l.id === levelId + 1);
+      if (nextLevel && nextLevel.stages.length > 0) {
+        nextStage = { levelId: nextLevel.id, stageId: nextLevel.stages[0].id };
+      }
+    }
+
+    return { wasFirstCompletion, pointsDelta, nextStage, isLastStageOverall: !nextStage };
+  }, [levels]);
+
+  /* --------------------------------------------------
    * حساب نسبة التقدم الكلية (0% → 100%)
    *
    * المعادلة:
@@ -230,6 +349,10 @@ export function AppProvider({ children }) {
     userProfile,
     updateUserProfile,
     addPoints,
+
+    /* تقدّم المستويات والمراحل (ديناميكي الآن، وليس ثابتاً) */
+    levelsData: levels,
+    completeStage,
 
     /* الصوت */
     isSoundOn,

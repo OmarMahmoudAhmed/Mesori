@@ -14,6 +14,7 @@ import ReactDOM from 'react-dom/client';
 import App      from './App.jsx';
 import './index.css'; /* استيراد الأنماط العامة */
 import '@flaticon/flaticon-uicons/css/regular/rounded.css'; /* أيقونات Flaticon Uicons (نمط regular-rounded) المُستخدَمة داخل الأزرار */
+import '@flaticon/flaticon-uicons/css/solid/rounded.css'; /* نمط solid-rounded: للأيقونات المُلوّنة البارزة (بطاقات الإحصائيات وميداليات المتصدرين) */
 
 /* البحث عن العنصر div#root في index.html وحقن التطبيق فيه */
 ReactDOM.createRoot(document.getElementById('root')).render(

@@ -31,7 +31,6 @@ import BottomNav         from '../components/layout/BottomNav';
 import EgyptianLogo      from '../components/shared/EgyptianLogo.png';
 import ExplorerCharacter from '../components/shared/ExplorerCharacter';
 import { useApp }        from '../context/AppContext';
-import { levelsData }    from '../data/levels';
 
 function QuizGroupPage() {
 
@@ -42,7 +41,7 @@ function QuizGroupPage() {
    * navigateTo   = للتنقل لصفحة الاختبار
    * goBack       = للرجوع للصفحة السابقة
    */
-  const { pageData, userProfile, navigateTo, goBack } = useApp();
+  const { pageData, userProfile, navigateTo, goBack, levelsData } = useApp();
 
   /*
    * نجد بيانات المستوى المحدد من قائمة levelsData

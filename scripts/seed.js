@@ -7,8 +7,7 @@ import { quizzesData } from '../src/data/quizzes.js';
 // =============================================
 // إعداد الاتصال بقاعدة البيانات
 // =============================================
-console.log('🔑 طول المفتاح السري:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0);
-console.log('🔑 أول 10 حروف:', process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) || 'غير موجود');
+console.log('🔑 مفتاح الخدمة السري موجود؟', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'نعم ✅' : 'لا ❌ (تحقق من .env)');
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -55,6 +54,7 @@ async function seedDatabase() {
       .upsert({
         id: level.id,
         name_ar: level.nameAr,        // ← استخدم nameAr من الملف
+        name_en: level.nameEn,        // ← كان ناقصاً، وهو سبب خطأ 400 عند القراءة
         difficulty: level.nameAr,     // ← استخدم nameAr كوصف للصعوبة
         max_points: level.maxPoints || 100,
       }, { onConflict: 'id' });
@@ -83,8 +83,13 @@ async function seedDatabase() {
           id: stage.id,
           level_id: stage.levelId,
           title: stage.title,
+          description: stage.description,   // ← كان ناقصاً، سبب خطأ 400
+          emoji: stage.emoji,                // ← كان ناقصاً، سبب خطأ 400
           order_index: stage.id,
-        }, { onConflict: 'id' });
+        }, { onConflict: 'level_id,id' });   // ← مفتاح مركّب: id يتكرر 1-5 عبر
+                                              //   المستويات، فلا يصلح onConflict:'id'
+                                              //   لوحده (كان يسبب استبدال بيانات
+                                              //   مستوى فوق مستوى آخر بصمت)
 
       if (stageError) {
         console.error(`      ❌ خطأ في المرحلة ${stage.id}:`, stageError.message);
@@ -124,11 +129,18 @@ async function seedDatabase() {
         .from('questions')
         .upsert({
           id: q.id,
+          level_id: quiz.levelId,       // ← كان ناقصاً، ضروري للمفتاح المركّب
           stage_id: quiz.stageId,
           question: q.question,
           options: q.options,
           correct_index: q.correctIndex,
-        }, { onConflict: 'id' });
+          explanation: q.explanation,   // ← كان ناقصاً، سبب فقدان شرح كل سؤال
+        }, { onConflict: 'level_id,stage_id,id' });  // ← مفتاح مركّب: id يتكرر
+                                                       //   1-10 داخل كل مرحلة، فكان
+                                                       //   onConflict:'id' يستبدل كل
+                                                       //   مرحلة فوق سابقتها بصمت
+                                                       //   (نجت فعلياً 10 أسئلة فقط
+                                                       //   من أصل 250!)
 
       if (qError) {
         console.error(`   ❌ خطأ في السؤال ${q.id}:`, qError.message);
@@ -140,6 +152,23 @@ async function seedDatabase() {
   }
 
   console.log(`\n🎉 تم رفع ${totalQuestions} سؤال بنجاح!`);
+
+  // =============================================
+  // 3. التحقق النهائي (عدّ الصفوف الفعلية في القاعدة)
+  // =============================================
+  console.log('\n🔍 التحقق النهائي من البيانات المرفوعة...');
+  const { count: levelsCount }   = await supabase.from('levels').select('*', { count: 'exact', head: true });
+  const { count: stagesCount }   = await supabase.from('stages').select('*', { count: 'exact', head: true });
+  const { count: questionsCount } = await supabase.from('questions').select('*', { count: 'exact', head: true });
+  console.log(`   المستويات: ${levelsCount} (متوقع 5)`);
+  console.log(`   المراحل: ${stagesCount} (متوقع 25)`);
+  console.log(`   الأسئلة: ${questionsCount} (متوقع 250)`);
+  if (levelsCount !== 5 || stagesCount !== 25 || questionsCount !== 250) {
+    console.warn('   ⚠️ الأعداد لا تطابق المتوقع — راجع الأخطاء أعلاه، أو تأكد إنك شغّلت supabase/migrations/001_schema.sql قبل هذا السكريبت.');
+  } else {
+    console.log('   ✅ كل الأعداد مطابقة تماماً.');
+  }
+
   console.log('✅ اكتمل رفع كل البيانات.');
 }
 

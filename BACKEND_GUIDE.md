@@ -81,6 +81,17 @@ Supabase بيدّيك مفتاحين مختلفين تماماً: الـ **anon 
 <a name="schema"></a>
 ## 3. تصميم قاعدة البيانات
 
+> **⚠️ تحديث (بعد التطبيق الفعلي):** النسخة الأولى من هذا المخطط كانت
+> تفترض `id` مفتاحاً أساسياً منفرداً لـ `stages` و`questions`. لكن
+> `id` في بيانات الواجهة (`data/levels.js` و`data/quizzes.js`) محلي
+> ومتعمّد التكرار (كل مستوى فيه مراحل 1-5، وكل مرحلة فيها أسئلة 1-10) —
+> فلما تحوّل لمفتاح عالمي في القاعدة، كل `upsert` لمستوى/مرحلة جديدة
+> كان يستبدل (يمحو بصمت) بيانات المستوى/المرحلة اللي قبلها بنفس الرقم.
+> النتيجة الفعلية كانت 5 صفوف بس في `stages` (مستوى واحد) و10 صفوف
+> بس في `questions` (مرحلة واحدة) بدل 25 و250! المخطط تحته مُصحح
+> بمفاتيح مركّبة تحل المشكلة دي من الأساس — لو بتطبّق من الصفر، استخدم
+> النسخة دي مباشرة (`supabase/migrations/001_schema.sql`).
+
 ```mermaid
 erDiagram
     profiles ||--o{ user_progress : "له"
@@ -92,40 +103,51 @@ erDiagram
         uuid id PK
         text username
         text character
+        int age
+        text country
+        text country_flag
         int total_points
     }
     levels {
         int id PK
         text name_ar
+        text name_en
         text difficulty
         int max_points
     }
     stages {
-        int id PK
-        int level_id FK
+        int id "PK مركّب مع level_id"
+        int level_id FK "PK مركّب مع id"
         text title
+        text description
+        text emoji
         int order_index
     }
     questions {
-        int id PK
-        int stage_id FK
+        int id "PK مركّب مع level_id+stage_id"
+        int level_id "PK مركّب + FK مركّب مع stages"
+        int stage_id "PK مركّب + FK مركّب مع stages"
         text question
         jsonb options
         int correct_index
+        text explanation
     }
     user_progress {
         uuid user_id FK
-        int stage_id FK
+        int level_id "FK مركّب مع stages"
+        int stage_id "FK مركّب مع stages"
         bool is_completed
         int best_score
     }
 ```
 
-**قرار تستاهل تاخده بنفسك:** حطيت `levels`/`stages` كجداول كاملة عشان `questions.stage_id` محتاج حاجة يشاور عليها، وتتبّع التقدم محتاج هوية ثابتة للمرحلة. لكن الحقول البصرية البحتة (الألوان، الأيقونات) ممكن تفضل زي ما هي في الكود بدل ما تتنقل لقاعدة البيانات — مش هتفرق كتير أداءً، والفرق إنك لو حبيت تغيّر عنوان مرحلة من غير deploy، هتحتاجها في القاعدة. رأيي: انقلها كلها للقاعدة (مصدر واحد للحقيقة أسهل في الصيانة)، لكنه مش قرار حرج لو فضّلت الأبسط.
+**قرار تستاهل تاخده بنفسك:** حطيت `levels`/`stages` كجداول كاملة عشان `questions.stage_id` محتاج حاجة يشاور عليها، وتتبّع التقدم محتاج هوية ثابتة للمرحلة. لكن الحقول البصرية البحتة (الألوان، مسارات الأيقونات) فضلت في الكود (`AppContext.jsx` → `LEVEL_PRESENTATION`) بدل قاعدة البيانات — مش هتفرق كتير أداءً، والفرق إنك لو حبيت تغيّر لون مستوى من غير deploy، هتحتاجه في القاعدة بدل الكود. أما `description`/`emoji` الخاصة بكل *مرحلة* (مش المستوى) و`explanation` لكل سؤال فهي محتوى تعليمي حقيقي يظهر في الواجهة، فلازم تكون في القاعدة دايماً — ده بالظبط اللي كان ناقصاً وسبب الأخطاء الأولى.
 
 **قرار تصميم مهم: مفيش جدول `leaderboard` منفصل.** المتصدرين هم ببساطة `profiles` مرتّبة تنازلياً حسب `total_points`. لو عملت جدول منفصل هيحتاج يفضل متزامن مع `profiles` يدوياً، وده مصدر أخطاء مش محتاجه.
 
 **تنبيه أمان بسيط تعرفه:** لو خليت `questions` قابلة للقراءة العامة (زي ما هتعمل في [المرحلة 2](#phase-2))، أي حد فاتح DevTools هيقدر يشوف `correct_index` قبل ما يجاوب. مش خطير لتطبيق تعليمي شخصي، بس لو حبيت تقفلها تماماً لاحقاً، الحل موجود في [آخر قسم](#later).
+
+**تنبيه GRANT (مختلف عن RLS):** فعّلت RLS مش كفاية لوحدها — PostgREST محتاج GRANT فعلي على مستوى الجدول نفسه للدور (`anon`/`authenticated`) *بالإضافة* لسياسة RLS المسموحة، وإلا هتاخد 401 حتى لو الـ policy بتقول `USING (true)`. راجع `GRANT SELECT ON levels, stages, questions TO anon, authenticated;` في نهاية ملف الـ migration.
 
 ---
 
@@ -175,7 +197,7 @@ flowchart TD
 اشرحلي كل جزء وانت بتكتبه، وقولي بالظبط ال commands اللي أشغّلها.
 ```
 
-**هتتأكد إنها اشتغلت لما:** تفتح Table Editor في Supabase وتلاقي الأسئلة العشرة موجودة كصفوف حقيقية في جدول `questions`.
+**هتتأكد إنها اشتغلت لما:** تفتح Table Editor في Supabase وتلاقي **250 صف بالظبط** في جدول `questions` (مش أقل) و**25 صف** في `stages` — لو العدد أقل من المتوقع رغم إن السكريبت قال "تم بنجاح"، غالباً فيه تضارب صامت في مفتاح أساسي (upsert بيستبدل صفوف بدل ما يضيفها)، زي ما حصل بالظبط أول مرة.
 
 ---
 
@@ -251,7 +273,7 @@ sequenceDiagram
     participant U as المستخدم (المتصفح)
     participant DB as Supabase (RPC Function)
 
-    U->>DB: claim_stage_completion(stage_id: 1, correct_count: 8)
+    U->>DB: claim_stage_completion(level_id: 1, stage_id: 1, correct_count: 8)
     Note over DB: يتأكد إن عدد أسئلة المرحلة فعلاً = 10
     Note over DB: يحسب النقاط بنفسه (مش بيصدّق رقم جاهز)
     DB->>DB: يحدّث user_progress
@@ -267,11 +289,12 @@ sequenceDiagram
 مبدأ "متثقش في العميل": بدل ما src/pages/QuizPage.jsx [الصقه] يحسب النقاط
 ويبعتها جاهزة، عايز:
 
-1. Postgres function اسمها claim_stage_completion(stage_id, correct_count)
-   بصلاحية SECURITY DEFINER، بتتأكد إن correct_count مش أكبر من عدد أسئلة
-   المرحلة الحقيقي، تحسب النقاط بنفس معادلة (maxPoints ÷ عدد المراحل) ÷
-   عدد الأسئلة، وتحدّث user_progress وprofiles.total_points في transaction
-   واحدة
+1. Postgres function اسمها claim_stage_completion(p_level_id, p_stage_id,
+   correct_count) بصلاحية SECURITY DEFINER — لاحظ إنها لازم level_id
+   وstage_id مع بعض (مش stage_id لوحده) لأن stages مفتاحها مركّب —
+   بتتأكد إن correct_count مش أكبر من عدد أسئلة المرحلة الحقيقي، تحسب
+   النقاط بنفس معادلة (maxPoints ÷ عدد المراحل) ÷ عدد الأسئلة، وتحدّث
+   user_progress وprofiles.total_points في transaction واحدة
 2. تعدّل handleNext في QuizPage.jsx عشان يستدعي الدالة دي عبر
    supabase.rpc() بدل استدعاء addPoints() المحلي مباشرة
 3. اربط isUnlocked لأي مرحلة تالية بوجود صف completed في user_progress

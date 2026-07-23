@@ -69,6 +69,22 @@ export function AppProvider({ children }) {
   // =============================================
   // تحميل المستويات والمراحل من Supabase
   // =============================================
+  /*
+   * الألوان ومسارات الأيقونات بصرية بحتة ولا تحتاج تخزينها في
+   * قاعدة البيانات (نفس القرار الموثّق في BACKEND_GUIDE.md)، لكنها
+   * لازم تختلف فعلياً حسب كل مستوى (سهل=أخضر، متوسط=فيروزي،
+   * صعب=أزرق، صعب جداً=برتقالي/بني، متقدم=ذهبي) بدل قيمة واحدة
+   * ثابتة لكل المستويات كما كانت — نفس القيم الأصلية من data/levels.js.
+   */
+  const LEVEL_PRESENTATION = {
+    1: { iconSrc: '/assets/icons/levels/level-1-pyramid.png',        bgColor: '#1B5E2E', headerBg: '#143F20', textColor: '#4ADE80', iconBg: '#0F2D18', badgeBg: '#0F2D18', badgeText: '#86EFAC' },
+    2: { iconSrc: '/assets/icons/levels/level-2-pharaoh-mask.png',   bgColor: '#0D7E72', headerBg: '#085E54', textColor: '#34D399', iconBg: '#054540', badgeBg: '#054540', badgeText: '#6EE7B7' },
+    3: { iconSrc: '/assets/icons/levels/level-3-pillar.png',         bgColor: '#1A3A6B', headerBg: '#122848', textColor: '#60A5FA', iconBg: '#0D1E3D', badgeBg: '#0D1E3D', badgeText: '#93C5FD' },
+    4: { iconSrc: '/assets/icons/levels/level-4-pharaoh-figure.png', bgColor: '#3B1A08', headerBg: '#2A1206', textColor: '#FB923C', iconBg: '#1E0D04', badgeBg: '#1E0D04', badgeText: '#FDBA74' },
+    5: { iconSrc: '/assets/icons/levels/level-5-ankh-shield.png',    bgColor: '#7A5200', headerBg: '#5A3C00', textColor: '#FBBF24', iconBg: '#3D2800', badgeBg: '#3D2800', badgeText: '#FCD34D' },
+  };
+  const FALLBACK_PRESENTATION = LEVEL_PRESENTATION[1];
+
   useEffect(() => {
     async function loadLevels() {
       try {
@@ -107,6 +123,7 @@ export function AppProvider({ children }) {
         // 2. تحويل البيانات إلى الشكل المتوقع من المكونات
         const formattedLevels = levelsData.map(level => {
           // ترتيب المراحل حسب order_index
+          const LEVEL_NAMES_AR = { 1: 'الأول', 2: 'الثاني', 3: 'الثالث', 4: 'الرابع', 5: 'الخامس' };
           const stages = (level.stages || [])
             .sort((a, b) => a.order_index - b.order_index)
             .map(stage => ({
@@ -119,7 +136,12 @@ export function AppProvider({ children }) {
               isUnlocked: false,
               isCompleted: false,
               earnedPoints: 0,
-              unlockCondition: null,
+              // نص فتح المرحلة (يظهر بدل الوصف طالما لسه مقفولة):
+              // المرحلة 1 من أي مستوى تحتاج إكمال المستوى السابق،
+              // وأي مرحلة تانية تحتاج إكمال المرحلة اللي قبلها فقط
+              unlockCondition: stage.id === 1
+                ? `أكمل المستوى ${LEVEL_NAMES_AR[level.id - 1] || 'السابق'} لفتح هذا المستوى`
+                : `أكمل المرحلة ${stage.id - 1} لفتح هذه المرحلة`,
             }));
 
           return {
@@ -132,14 +154,9 @@ export function AppProvider({ children }) {
             isUnlocked: level.id === 1, // المستوى الأول مفتوح دائماً
             earnedPoints: 0,
             stages: stages,
-            // خصائص إضافية للتنسيق (لن تُستخدم في قاعدة البيانات)
-            iconSrc: `/assets/icons/levels/level-${level.id}.png`,
-            bgColor: '#1B5E2E',
-            headerBg: '#143F20',
-            textColor: '#4ADE80',
-            iconBg: '#0F2D18',
-            badgeBg: '#0F2D18',
-            badgeText: '#86EFAC',
+            // خصائص إضافية للتنسيق (لن تُستخدم في قاعدة البيانات) —
+            // تختلف فعلياً حسب كل مستوى، راجع LEVEL_PRESENTATION أعلاه
+            ...(LEVEL_PRESENTATION[level.id] || FALLBACK_PRESENTATION),
             quizCount: 10,
           };
         });

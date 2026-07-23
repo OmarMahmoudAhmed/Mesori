@@ -165,59 +165,6 @@ function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  /* تحميل الأسئلة من قاعدة البيانات عند تغيير stageId */
-  useEffect(() => {
-    async function loadQuestions() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        console.log(`🔄 تحميل أسئلة المرحلة ${stageId}...`);
-
-        const { data, error: fetchError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('stage_id', stageId)
-          .order('id');
-
-        if (fetchError) {
-          console.error('❌ خطأ في تحميل الأسئلة:', fetchError);
-          setError(fetchError.message);
-          setQuestions([]);
-          return;
-        }
-
-        if (!data || data.length === 0) {
-          console.warn(`⚠️ لا توجد أسئلة للمرحلة ${stageId} في قاعدة البيانات.`);
-          setQuestions([]);
-          return;
-        }
-
-        // تحويل البيانات إلى الشكل المتوقع من المكون
-        const formattedQuestions = data.map((q) => ({
-          id: q.id,
-          question: q.question,
-          options: q.options || [],
-          correctIndex: q.correct_index,
-          explanation: q.explanation || '',
-        }));
-
-        console.log(`✅ تم تحميل ${formattedQuestions.length} سؤال للمرحلة ${stageId}`);
-        setQuestions(formattedQuestions);
-
-      } catch (err) {
-        console.error('❌ خطأ غير متوقع:', err);
-        setError(err.message);
-        setQuestions([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadQuestions();
-  }, [stageId]); // يُعاد التحميل عند تغيير stageId
-
-
   /* --------------------------------------------------
    * حالة الاختبار (Local State)
    * currentQuestionIndex → رقم السؤال الحالي (0 = الأول)
@@ -235,6 +182,77 @@ function QuizPage() {
   /* نتيجة completeStage بعد إنهاء الاختبار: تحمل معلومة "أين المرحلة
    * التالية بالضبط؟" حتى تقدر شاشة النتيجة تعرض زر ينقل إليها مباشرة */
   const [completionResult,     setCompletionResult]     = useState(null);
+
+  /* تحميل الأسئلة من قاعدة البيانات عند تغيير المرحلة (levelId أو stageId) */
+  useEffect(() => {
+    /*
+     * 🔑 الإصلاح الأساسي لمشكلة "زر المرحلة التالية ما بيشتغلش":
+     * QuizPage نفس المكوّن (نفس الـ instance) يفضل شغّال لما تنتقل
+     * من مرحلة لمرحلة تانية عن طريق زرار "المرحلة التالية" (بعكس
+     * الرجوع لقائمة المراحل، اللي بيعمل unmount/remount كامل
+     * للصفحة فيصفّرها تلقائياً). فلو ما صفّرناش isFinished/
+     * currentQuestionIndex/completionResult... يدوياً هنا، هتفضل
+     * شاشة نتيجة المرحلة "القديمة" ظاهرة فوق أسئلة المرحلة الجديدة
+     * اللي اتحمّلت فعلاً في الخلفية — يعني عملياً الزرار "مش بيعمل
+     * حاجة" من منظور المستخدم رغم إن التنقّل حصل فعلياً.
+     */
+    setCurrentQuestionIndex(0);
+    setSelectedIndex(null);
+    setCorrectCount(0);
+    setIsFinished(false);
+    setCompletionResult(null);
+    setShowExitConfirm(false);
+
+    async function loadQuestions() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log(`🔄 تحميل أسئلة المستوى ${levelId} / المرحلة ${stageId}...`);
+
+        const { data, error: fetchError } = await supabase
+          .from('questions')
+          .select('*')
+          .eq('level_id', levelId)   // 🔑 لازم level_id هنا برضه: stage_id
+          .eq('stage_id', stageId)   //    لوحدها بتتكرر 1-10 عبر المستويات
+          .order('id');
+
+        if (fetchError) {
+          console.error('❌ خطأ في تحميل الأسئلة:', fetchError);
+          setError(fetchError.message);
+          setQuestions([]);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          console.warn(`⚠️ لا توجد أسئلة للمرحلة ${levelId}-${stageId} في قاعدة البيانات.`);
+          setQuestions([]);
+          return;
+        }
+
+        // تحويل البيانات إلى الشكل المتوقع من المكون
+        const formattedQuestions = data.map((q) => ({
+          id: q.id,
+          question: q.question,
+          options: q.options || [],
+          correctIndex: q.correct_index,
+          explanation: q.explanation || '',
+        }));
+
+        console.log(`✅ تم تحميل ${formattedQuestions.length} سؤال للمرحلة ${levelId}-${stageId}`);
+        setQuestions(formattedQuestions);
+
+      } catch (err) {
+        console.error('❌ خطأ غير متوقع:', err);
+        setError(err.message);
+        setQuestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadQuestions();
+  }, [levelId, stageId]); // 🔑 يُعاد التحميل والتصفير عند تغيير أي منهما
 
 
   /*

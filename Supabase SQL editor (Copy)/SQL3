@@ -1,7 +1,0 @@
--- منح جميع الصلاحيات الأساسية (SELECT, INSERT, UPDATE, DELETE) لدور service_role
-GRANT ALL PRIVILEGES ON TABLE levels TO service_role;
-GRANT ALL PRIVILEGES ON TABLE stages TO service_role;
-GRANT ALL PRIVILEGES ON TABLE questions TO service_role;
-
--- وللتأكد، أيضاً منح صلاحيات على التسلسلات (sequences) المرتبطة بالمفاتيح الأساسية (حيث توجد)
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO service_role;

@@ -54,6 +54,12 @@ function questionsFor(levelId, stageId) {
 
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
+    auth: {
+      // هذا الاختبار لا يفحص تسجيل الدخول نفسه، فقط الانتقال بين
+      // المراحل — نحاكي "مفيش جلسة" عشان AppContext يكمل عادي
+      getSession: () => Promise.resolve({ data: { session: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
     from: (table) => {
       if (table === 'levels') {
         return {
@@ -132,8 +138,17 @@ describe('QuizPage - الانتقال من مرحلة لمرحلة', () => {
   });
 
   it('ينتقل لمستوى جديد بالكامل عند إنهاء آخر مرحلة في المستوى', async () => {
-    renderQuiz(1, 2); // آخر مرحلة في المستوى 1
+    renderQuiz(1, 1); // يبدأ من أول مرحلة (مش قفزة مباشرة لآخر مرحلة، عشان يحاكي مسار لاعب حقيقي)
 
+    // أكمل المرحلة 1-1 أولاً (شرط حقيقي لفتح 1-2)
+    await answerAndFinish();
+    const nextStageBtn = await screen.findByText('المرحلة التالية');
+    fireEvent.click(nextStageBtn);
+    await waitFor(() => {
+      expect(screen.getByText('سؤال تجريبي للمستوى 1 / المرحلة 2')).toBeInTheDocument();
+    });
+
+    // ودلوقتي أكمل آخر مرحلة في المستوى (1-2) فعلياً
     await answerAndFinish();
 
     const nextLevelBtn = await screen.findByText('الانتقال للمستوى التالي');

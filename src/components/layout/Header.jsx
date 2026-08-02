@@ -3,31 +3,33 @@
  * Header.jsx - رأس الصفحة العلوي
  * =====================================================
  *
- * يتغير رأس الصفحة حسب الصفحة التي نحن فيها:
- *
  * الصفحة الرئيسية (Home):
- * ┌────────────────────────────────────┐
- * │  🔇  (صوت)          ⚙️  (إعدادات) │
- * └────────────────────────────────────┘
+ * ┌────────────────────────────────────────┐
+ * │  🔔 (إشعارات)   ⚔️ (1 ضد 1)   ⚙️ (إعدادات) │
+ * └────────────────────────────────────────┘
  *
  * باقي الصفحات (Quiz, Leaderboard, Profile):
  * ┌────────────────────────────────────┐
- * │  >   (رجوع)         ⚙️  (إعدادات) │
+ * │  >   (رجوع)              ⚙️ (إعدادات) │
  * └────────────────────────────────────┘
  *
  * الخصائص (Props):
- * @prop showBack  {boolean} - هل نعرض زر الرجوع؟
- * @prop showSound {boolean} - هل نعرض زر الصوت؟
- * @prop onBack    {function} - دالة الرجوع (اختياري - إذا لم تُمرّر يستخدم goBack من Context)
+ * @prop showBack          {boolean} - هل نعرض زر الرجوع؟
+ * @prop showNotifications {boolean} - هل نعرض جرس الإشعارات؟ (بدل زر الصوت القديم)
+ * @prop showVsIcon        {boolean} - هل نعرض أيقونة "1 ضد 1" في المنتصف؟
+ * @prop onBack            {function} - دالة الرجوع (اختياري)
  * =====================================================
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import NotificationBell from './NotificationBell';
+import SettingsDropdown from './SettingsDropdown';
 
-function Header({ showBack = false, showSound = false, onBack = null }) {
+function Header({ showBack = false, showNotifications = false, showVsIcon = false, onBack = null }) {
 
-  const { isSoundOn, toggleSound, goBack } = useApp();
+  const { goBack, navigateTo } = useApp();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleBack = () => {
     if (onBack) {
@@ -46,82 +48,48 @@ function Header({ showBack = false, showSound = false, onBack = null }) {
         relative z-10
       "
     >
-      {/* ===== الزر الأيسر (رجوع أو صوت) ===== */}
+      {/* ===== الزر الأيسر (رجوع أو جرس الإشعارات) ===== */}
       {showBack ? (
-        /* ---- زر الرجوع (سهم إلى اليمين →) ---- */
         <button
           onClick={handleBack}
-          className="
-            w-12 h-12
-            bg-white
-            rounded-2xl
-            flex items-center justify-center
-            shadow-card
-            press-effect no-tap-highlight
-            active:scale-95
-            transition-transform duration-100
-          "
+          className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-card press-effect no-tap-highlight active:scale-95 transition-transform duration-100"
           aria-label="رجوع للصفحة السابقة"
         >
-          {/*
-            * سهم الرجوع (متجه لليمين، مناسب لـ RTL)
-            * أيقونة Flaticon Uicons (fi fi-rr-arrow-right) بدلاً من صورة PNG
-            */}
           <i className="fi fi-rr-arrow-right" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
         </button>
 
-      ) : showSound ? (
-        /* ---- زر الصوت (🔊 / 🔇) ---- */
-        <button
-          onClick={toggleSound}
-          className="
-            w-12 h-12
-            bg-white
-            rounded-2xl
-            flex items-center justify-center
-            shadow-card
-            press-effect no-tap-highlight
-            transition-transform duration-100
-          "
-          aria-label={isSoundOn ? 'كتم الصوت' : 'تشغيل الصوت'}
-        >
-          {/*
-            * أيقونة الصوت (تتغيّر حسب isSoundOn)
-            * أيقونتا Flaticon Uicons بدلاً من صور PNG:
-            *   - fi fi-rr-volume       (صوت مفعّل)
-            *   - fi fi-rr-volume-mute  (صوت مكتوم)
-            */}
-          {isSoundOn ? (
-            <i className="fi fi-rr-volume" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
-          ) : (
-            <i className="fi fi-rr-volume-mute" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
-          )}
-        </button>
+      ) : showNotifications ? (
+        <NotificationBell />
 
       ) : (
         <div className="w-12 h-12" />
       )}
 
+      {/* ===== المنتصف: أيقونة "1 ضد 1" (الصفحة الرئيسية فقط) ===== */}
+      {showVsIcon ? (
+        <button
+          onClick={() => navigateTo('vs-lobby')}
+          className="w-14 h-14 rounded-2xl flex items-center justify-center press-effect no-tap-highlight transition-transform duration-100"
+          style={{ backgroundColor: '#7A1F1F', boxShadow: '0 4px 14px rgba(122,31,31,0.4)' }}
+          aria-label="نمط اللعب 1 ضد 1"
+        >
+          <i className="fi fi-sr-sword" aria-hidden="true" style={{ fontSize: '22px', color: '#FDBA74' }} />
+        </button>
+      ) : (
+        <div />
+      )}
+
       {/* ===== الزر الأيمن: الإعدادات (⚙️) ===== */}
-      <button
-        className="
-          w-12 h-12
-          bg-white
-          rounded-2xl
-          flex items-center justify-center
-          shadow-card
-          press-effect no-tap-highlight
-          transition-transform duration-100
-        "
-        aria-label="الإعدادات"
-        onClick={() => alert('⚙️ شاشة الإعدادات - ستُبنى قريباً!')}
-      >
-        {/*
-          * أيقونة الإعدادات (الترس)
-          * أيقونة Flaticon Uicons (fi fi-rr-settings) بدلاً من صورة PNG
-          */}
-        <i className="fi fi-rr-settings" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
-      </button>
+      <div className="relative">
+        <button
+          className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-card press-effect no-tap-highlight transition-transform duration-100"
+          aria-label="الإعدادات"
+          onClick={() => setIsSettingsOpen(prev => !prev)}
+        >
+          <i className="fi fi-rr-settings" aria-hidden="true" style={{ fontSize: '22px', color: '#3D2B1F' }} />
+        </button>
+        <SettingsDropdown isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      </div>
     </header>
   );
 }

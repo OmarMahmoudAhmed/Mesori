@@ -235,36 +235,29 @@ stages/questions بنفس البنية دي: [الصق قسم "تصميم قاع
 ---
 
 <a name="phase-3"></a>
-## 7. المرحلة 3: تسجيل الدخول
+## 7. المرحلة 3: تسجيل الدخول ✅ (منفّذة)
 
-**قرار تاخده إنت الأول:** إيميل+باسورد أبسط حاجة تتعلم بيها Auth، وهو اللي هنبني عليه تحت. لو خططت لاستخدام حقيقي مع أطفال طلابك مش بس للتجربة الشخصية، راجع الأول أي قواعد محلية أو دولية لحماية بيانات القاصرين (زي COPPA في أمريكا) قبل ما تجمع أي بيانات حقيقية منهم — ده موضوع قانوني مش تقني، وأنا مش المصدر المناسب لاستشارة قانونية فيه، بس يستاهل تتأكد منه بدري قبل أي إطلاق فعلي.
+**قرار اتاخد:** إيميل+باسورد (أبسط حاجة). لو خططت لاستخدام حقيقي مع أطفال طلابك مش بس للتجربة الشخصية، راجع الأول أي قواعد محلية أو دولية لحماية بيانات القاصرين (زي COPPA في أمريكا) قبل ما تجمع أي بيانات حقيقية منهم — ده موضوع قانوني مش تقني، وأنا مش المصدر المناسب لاستشارة قانونية فيه، بس يستاهل تتأكد منه بدري قبل أي إطلاق فعلي.
 
-### المهمة 3.1 — شاشة تسجيل الدخول وربط الملف الشخصي
+### ما تم تنفيذه فعلياً
 
-**البرومبت الجاهز:**
-```
-مشروع Mesori (React + Vite) عنده الآن Supabase متصل (قراءة فقط). عايز
-أضيف تسجيل دخول بإيميل وباسورد باستخدام Supabase Auth.
+- **`mesori-auth/`**: تصميم شاشة الدخول/التسجيل (منقول الآن لـ `src/pages/LoginPage.jsx` و`src/components/auth/`)، مربوط بـ `supabase.auth.signInWithPassword` / `supabase.auth.signUp` عبر `signIn`/`signUp` في `AppContext.jsx`.
+- **`supabase/migrations/002_auth_and_leaderboard.sql`**:
+  - `profiles.onboarding_completed` — لتتبّع هل المستخدم اختار اسمه/عمره/شخصيته.
+  - Trigger `on_auth_user_created` (SECURITY DEFINER): بمجرد تسجيل حساب جديد في `auth.users`، يتولّد صف تلقائي في `profiles` — لا حاجة لـ INSERT يدوي من الواجهة.
+  - View `public.leaderboard`: قائمة متصدرين حقيقية (id، username، character، total_points، level_reached، rank) من `profiles` مع `LEFT JOIN user_progress`، تعمل "تخطّي" لـ RLS الصارم على `profiles` عمداً (راجع تعليق الملف نفسه لشرح آلية Postgres وراء ده) بدون كشف أعمدة حسّاسة زي `age`/`country`.
+- **`src/pages/OnboardingPage.jsx`**: شاشة تظهر مرة واحدة بعد أول تسجيل (طالما `!userProfile.onboardingCompleted`)، تختار الاسم/العمر/الشخصية، وتحفظهم عبر `completeOnboarding()`.
+- **`src/App.jsx`**: بوابة كاملة — `authLoading` → `!session` (LoginPage) → `profileLoading` → `!onboardingCompleted` (OnboardingPage) → التطبيق المعتاد.
+- **`src/pages/LeaderboardPage.jsx`**: بيقرأ من الـ view الحقيقي بدل `data/leaderboard.js` الثابت (اتحذف).
 
-عايزك:
-1. تعمل شاشة تسجيل دخول/تسجيل جديد بسيطة، بنفس أسلوب التصميم الموجود في
-   src/pages/ProfilePage.jsx (فونت Cairo، الألوان نفسها، rounded-2xl،
-   press-effect) [الصق ProfilePage.jsx]
-2. لما مستخدم جديد يسجّل، اعمل trigger أو upsert بيضيفله صف تلقائي في
-   جدول profiles (username، character افتراضي 'boy'، total_points = 0)
-3. عدّل AppContext.jsx [الصقه] عشان userProfile.js الوهمي يتستبدل ببيانات
-   المستخدم المسجّل دخول فعلياً من profiles
-
-اشرحلي إزاي الـ session بتتخزن وإزاي أتأكد إن المستخدم لسه مسجّل دخول
-لما يرجع للتطبيق تاني.
-```
-
-**هتتأكد إنها اشتغلت لما:** تسجّل حساب جديد، تقفل التاب، تفتحه تاني — لسه مسجّل دخول، وتلاقي صف جديد ليك في جدول `profiles`.
+**هتتأكد إنها اشتغلت لما:** تسجّل حساب جديد، تكمّل Onboarding، تقفل التاب، تفتحه تاني — لسه مسجّل دخول ومش هيطلب Onboarding تاني، وتلاقي صف جديد ليك في `profiles` وظاهر في `leaderboard` بعد أول نقطة.
 
 ---
 
 <a name="phase-4"></a>
 ## 8. المرحلة 4: تقدّم ونقاط حقيقية
+
+⚠️ **تحديث:** جزء من هذه المرحلة اتنفّذ فعلاً بشكل مبسّط ضمن مهمة المرحلة 3 (كانت الاثنتان مطلوبتان معاً في نفس الجلسة) — دالة `record_stage_progress(p_level_id, p_stage_id, p_score)` في نفس ملف `002_auth_and_leaderboard.sql` بتحدّث `user_progress` و`profiles.total_points` معاً بشكل ذرّي (transaction واحدة)، وبتستخدم `auth.uid()` من الجلسة نفسها (مش user_id جاي من العميل). **الناقص لسه:** التحقق من إن `correct_count`/النقاط المُرسَلة منطقية فعلاً بمقارنتها بعدد أسئلة المرحلة الحقيقي — دلوقتي الدالة بتثق في الرقم اللي بيوصلها من `completeStage()` في `AppContext.jsx`. المهمة 4.1 تحت لسه صالحة لإضافة هذا التحقق تحديداً:
 
 هنا بيتطبّق مبدأ "متثقش في العميل" اللي شرحناه فوق. بدل ما `QuizPage.jsx` يبعت "جاوبت 8 صح" ونصدّقه، بنبعت *عدد الإجابات الصح بس*، وقاعدة البيانات نفسها بتتأكد وتحسب النقاط:
 
@@ -281,29 +274,26 @@ sequenceDiagram
     DB-->>U: { success: true, points_earned: 16 }
 ```
 
-### المهمة 4.1 — دالة إتمام المرحلة + ربطها بـ QuizPage
+### المهمة 4.1 — تحقّق من صحة النقاط داخل RPC (تقوية record_stage_progress الموجودة)
 
 **البرومبت الجاهز:**
 ```
-مشروع Mesori. عندي جدول user_progress وprofiles.total_points. عايز أطبّق
-مبدأ "متثقش في العميل": بدل ما src/pages/QuizPage.jsx [الصقه] يحسب النقاط
-ويبعتها جاهزة، عايز:
+مشروع Mesori. عندي دالة record_stage_progress(p_level_id, p_stage_id, p_score)
+في supabase/migrations/002_auth_and_leaderboard.sql بتحدّث user_progress
+وprofiles.total_points، لكنها بتثق في p_score من غير أي تحقّق. عايزك:
 
-1. Postgres function اسمها claim_stage_completion(p_level_id, p_stage_id,
-   correct_count) بصلاحية SECURITY DEFINER — لاحظ إنها لازم level_id
-   وstage_id مع بعض (مش stage_id لوحده) لأن stages مفتاحها مركّب —
-   بتتأكد إن correct_count مش أكبر من عدد أسئلة المرحلة الحقيقي، تحسب
-   النقاط بنفس معادلة (maxPoints ÷ عدد المراحل) ÷ عدد الأسئلة، وتحدّث
-   user_progress وprofiles.total_points في transaction واحدة
-2. تعدّل handleNext في QuizPage.jsx عشان يستدعي الدالة دي عبر
-   supabase.rpc() بدل استدعاء addPoints() المحلي مباشرة
-3. اربط isUnlocked لأي مرحلة تالية بوجود صف completed في user_progress
-   للمرحلة اللي قبلها، بدل الحقل الثابت في levels.js
+1. تعدّل الدالة عشان تتأكد إن p_score منطقي فعلاً: تجيب عدد أسئلة
+   المرحلة الحقيقي من جدول questions (WHERE level_id=p_level_id AND
+   stage_id=p_stage_id)، تحسب أقصى نقاط ممكنة بنفس معادلة AppContext.jsx
+   (maxPoints ÷ عدد المراحل ÷ عدد الأسئلة × عدد الأسئلة)، وترفض أي
+   p_score أكبر من الحد الأقصى المحسوب (RAISE EXCEPTION)
+2. مفيش تغيير مطلوب في AppContext.jsx — بيستدعي نفس الدالة بنفس الاسم
+   والمعاملات أصلاً
 
-اشرحلي ليه SECURITY DEFINER مهمة هنا.
+اشرحلي ليه التحقّق ده مهم حتى لو الواجهة الحالية بتحسب صح.
 ```
 
-**هتتأكد إنها اشتغلت لما:** تفتح DevTools → Network وانت بتخلّص اختبار، وتلاقي الطلب اللي بيتبعت فيه `correct_count` بس — مش رقم النقاط جاهز. جرّب كمان تبعت رقم أكبر من 10 يدوياً من Console وشوف الدالة بترفضه.
+**هتتأكد إنها اشتغلت لما:** تفتح Console وتستدعي `supabase.rpc('record_stage_progress', {p_level_id:1, p_stage_id:1, p_score: 99999})` يدوياً — المفروض ترفضه بخطأ بدل ما تقبله.
 
 ---
 
@@ -315,6 +305,20 @@ sequenceDiagram
 ---
 
 <a name="later"></a>
+## 9.5. الأفاتار والشارات والرسائل ✅ (منفّذة)
+
+طُبِّقت في `supabase/migrations/003_avatars_badges_messages.sql`:
+
+- **الأفاتار**: `profiles.character` بقى يقبل 6 قيم بدل 2 (راجع `src/data/avatars.jsx` كمصدر واحد للحقيقة، ومكوّن `<AvatarDisplay avatarKey={...}/>` يُستخدم في كل مكان بدل تكرار منطق العرض).
+- **الشارات**: `badges` (تعريفات) + `user_badges` (من كسب إيه)، ممنوحة فقط عبر `award_badge_if_new()`/`check_and_award_badges()` (SECURITY DEFINER) — لا INSERT مباشر لأي دور، فمينفعش مستخدم يمنح نفسه شارة. شارة `ads_5` معرّفة لكن `is_active=false` لحد ما تُبنى ميزة الإعلانات.
+- **الرسائل + الإشعارات**: `messages`/`notifications` بحماية RLS كاملة، إرسال عبر `send_message()` فقط (يتحقق من عدم المراسلة الذاتية والفراغ)، وحذف تلقائي بعد 7 أيام عبر `delete_old_messages_and_notifications()` (مجدولة بـ pg_cron أو Edge Function — راجع `supabase/README.md`).
+- **تتبّع الوقت/المشاركة**: `track_app_time(seconds)` تُستدعى كل 60 ثانية من `AppContext.jsx` طالما الصفحة ظاهرة، و`track_share()` من زر المشاركة في `ProfilePage.jsx` — كلاهما حماية بسيطة من قيم غير منطقية، مش حماية كاملة من العبث المتعمّد.
+
+**ناقص عن قصد (تحتاج خطوة تالية منفصلة):**
+- ربط أزرار الدعم/الاستطلاع في `SettingsDropdown.jsx` بروابطك الحقيقية (حالياً placeholders).
+- بناء ميزة الإعلانات فعلياً (Rewarded Ads) لتفعيل شارة `ads_5`.
+- 1v1 الحقيقي: `VsComingSoonPage.jsx` مجرد بوابة إعلان الآن، والتصميم الكامل في `VS_MODE_GUIDE.md`.
+
 ## 10. حاجات تستاهل تفكّر فيها بعدين
 
 - **إخفاء الإجابة الصحيحة تماماً:** لو حبيت تقفل الثغرة إن `correct_index` ظاهر في DevTools، الحل يبقى RPC function كمان بتاخد إجابة المستخدم وترجّع "صح/غلط" بس، من غير ما الـ`questions` تبعت الإجابة الصحيحة للمتصفح أصلاً. أعقد شوية من المرحلة 4، وممكن نأجّلها لما تحتاجها فعلاً.

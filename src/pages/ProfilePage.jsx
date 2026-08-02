@@ -15,8 +15,10 @@ import AppWrapper        from '../components/layout/AppWrapper';
 import Header            from '../components/layout/Header';
 import BottomNav         from '../components/layout/BottomNav';
 import EgyptianLogo      from '../components/shared/EgyptianLogo.png';
-import ExplorerCharacter from '../components/shared/ExplorerCharacter';
+import { BadgeIcon }     from '../components/shared/BadgeIcon';
+import { AVATARS, AvatarDisplay } from '../data/avatars';
 import { useApp }        from '../context/AppContext';
+import { supabase }      from '../lib/supabaseClient';
 
 /* مكوّن صغير لحقل البيانات الشخصية مع زر التعديل */
 function ProfileField({ icon, iconColor, label, value, onEdit }) {
@@ -97,7 +99,32 @@ function StatCard({ icon, iconColor, value, label }) {
 
 function ProfilePage() {
 
-  const { userProfile, updateUserProfile, goBack } = useApp();
+  const { userProfile, updateUserProfile, goBack, signOut, userBadges, trackShare } = useApp();
+
+  const [allBadges, setAllBadges] = useState([]);
+
+  React.useEffect(() => {
+    supabase.from('badges').select('*').then(({ data, error }) => {
+      if (error) { console.error('❌ خطأ في تحميل تعريفات الشارات:', error); return; }
+      setAllBadges(data || []);
+    });
+  }, []);
+
+  const handleShare = async () => {
+    const shareText = 'بلعب ميسوري وبتعلّم عن مصر القديمة بطريقة ممتعة! جرّبه أنت كمان 🏺';
+    const shareUrl = window.location.origin;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: shareText, url: shareUrl });
+      } catch (err) {
+        return; // المستخدم لغى المشاركة، مفيش داعي نكمل
+      }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank', 'noopener,noreferrer');
+    }
+    trackShare();
+  };
 
   /*
    * editingField - اسم الحقل الذي يجري تعديله حالياً
@@ -164,7 +191,7 @@ function ProfilePage() {
             </p>
           </div>
 
-          <ExplorerCharacter size={80} gender={userProfile.character} />
+          <AvatarDisplay avatarKey={userProfile.character} size={80} />
         </div>
 
 
@@ -198,22 +225,19 @@ function ProfilePage() {
             </div>
           </div>
 
-          {/* خيارات الشخصية */}
-          <div className="flex gap-6 justify-center">
-            {[
-              { key: 'boy',  label: 'ولد'  },
-              { key: 'girl', label: 'بنت'  },
-            ].map(({ key, label }) => {
+          {/* خيارات الأفاتار (6 خيارات: صورتان + 4 أيقونات مصرية) */}
+          <div className="grid grid-cols-3 gap-3">
+            {AVATARS.map(({ id, label }) => {
 
-              const isSelected = userProfile.character === key;
+              const isSelected = userProfile.character === id;
 
               return (
                 <button
-                  key={key}
-                  onClick={() => updateUserProfile({ character: key })}
-                  className="flex flex-col items-center gap-2 press-effect"
+                  key={id}
+                  onClick={() => updateUserProfile({ character: id })}
+                  className="flex flex-col items-center gap-1.5 press-effect"
                 >
-                  {/* دائرة الشخصية مع علامة الاختيار */}
+                  {/* دائرة الأفاتار مع علامة الاختيار */}
                   <div className="relative">
                     <div
                       className="rounded-full p-1"
@@ -222,41 +246,96 @@ function ProfilePage() {
                         backgroundColor: isSelected ? 'rgba(45,106,63,0.05)' : 'transparent',
                       }}
                     >
-                      <ExplorerCharacter size={60} gender={key} />
+                      <AvatarDisplay avatarKey={id} size={52} />
                     </div>
 
-                    {/* علامة الاختيار — أيقونة Flaticon Uicons (fi fi-rr-check) بدلاً من صورة PNG */}
                     {isSelected && (
                       <div
-                        className="absolute -top-1 -left-1 w-6 h-6 rounded-full flex items-center justify-center"
+                        className="absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center"
                         style={{ backgroundColor: '#2D6A3F' }}
                       >
-                        <i className="fi fi-rr-check" aria-hidden="true" style={{ fontSize: '12px', color: '#FFFFFF' }} />
+                        <i className="fi fi-rr-check" aria-hidden="true" style={{ fontSize: '10px', color: '#FFFFFF' }} />
                       </div>
                     )}
                   </div>
 
-                  {/* اسم الشخصية */}
-                  <div
-                    className="px-5 py-1.5 rounded-full"
-                    style={{
-                      backgroundColor: isSelected ? '#2D6A3F' : 'rgba(200,146,42,0.15)',
-                    }}
+                  {/* اسم الأفاتار */}
+                  <span
+                    className="font-bold text-xs"
+                    style={{ fontFamily: "'Cairo', sans-serif", color: isSelected ? '#2D6A3F' : '#8B4513' }}
                   >
-                    <span
-                      className="font-bold text-sm"
-                      style={{
-                        fontFamily: "'Cairo', sans-serif",
-                        color: isSelected ? 'white' : '#8B4513',
-                      }}
-                    >
-                      {label}
-                    </span>
-                  </div>
+                    {label}
+                  </span>
                 </button>
               );
             })}
           </div>
+        </div>
+
+
+        {/* ===== الشارات المكتسبة ===== */}
+        <div
+          className="mx-4 mb-4 rounded-2xl p-4"
+          style={{ backgroundColor: 'white', border: '1px solid rgba(200,146,42,0.2)' }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="font-bold text-base" style={{ fontFamily: "'Cairo', sans-serif", color: '#3D2B1F' }}>
+                الشارات
+              </h2>
+              <p className="text-xs" style={{ fontFamily: "'Cairo', sans-serif", color: '#8B5A2B' }}>
+                {userBadges.length} من {allBadges.length} شارة مكتسبة
+              </p>
+            </div>
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'rgba(200,146,42,0.12)' }}
+            >
+              <i className="fi fi-rr-medal" aria-hidden="true" style={{ fontSize: '16px', color: '#C8922A' }} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {allBadges.map((badge) => {
+              const earned = userBadges.some(b => b.id === badge.id);
+              return (
+                <div
+                  key={badge.id}
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-xl text-center"
+                  style={{ backgroundColor: earned ? 'rgba(200,146,42,0.08)' : 'transparent' }}
+                  title={badge.description_ar}
+                >
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: earned ? 'rgba(200,146,42,0.15)' : 'rgba(168,162,158,0.12)' }}
+                  >
+                    <BadgeIcon icon={badge.icon} size={22} locked={!earned} />
+                  </div>
+                  <span
+                    className="text-[10px] font-bold leading-tight"
+                    style={{ fontFamily: "'Cairo', sans-serif", color: earned ? '#3D2B1F' : '#A8A29E' }}
+                  >
+                    {badge.title_ar}
+                  </span>
+                  {!badge.is_active && (
+                    <span className="text-[9px]" style={{ fontFamily: "'Cairo', sans-serif", color: '#A8A29E' }}>
+                      قريباً
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* زر مشاركة سريع — يحسب شارة "ناشر المعرفة" */}
+          <button
+            onClick={handleShare}
+            className="w-full flex items-center justify-center gap-2 mt-4 py-3 rounded-2xl font-bold press-effect no-tap-highlight"
+            style={{ backgroundColor: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.3)', color: '#1F9C4C', fontFamily: "'Cairo', sans-serif" }}
+          >
+            <i className="fi fi-brands-whatsapp" aria-hidden="true" style={{ fontSize: '15px' }} />
+            <span>شارك ميسوري مع صديق</span>
+          </button>
         </div>
 
 
@@ -297,12 +376,70 @@ function ProfilePage() {
             value={`${userProfile.countryFlag} ${userProfile.country}`}
             onEdit={() => startEditing('country', userProfile.country)}
           />
+
+          {/* الجنس — منفصل عن اختيار الأفاتار، زرّين مباشرين بدل نافذة التعديل */}
+          <div className="flex items-center gap-3 py-3" style={{ borderBottom: '1px solid rgba(200,146,42,0.1)' }}>
+            <div className="flex items-center gap-2 w-24 flex-shrink-0">
+              <i className="fi fi-rr-venus-mars" aria-hidden="true" style={{ fontSize: '15px', color: '#C8922A' }} />
+              <span className="font-semibold text-sm" style={{ fontFamily: "'Cairo', sans-serif", color: '#8B4513' }}>
+                الجنس
+              </span>
+            </div>
+            <div className="flex-1 flex gap-2">
+              {[{ id: 'male', label: 'ذكر' }, { id: 'female', label: 'أنثى' }].map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => updateUserProfile({ gender: g.id })}
+                  className="flex-1 py-1.5 rounded-lg font-bold text-xs press-effect no-tap-highlight"
+                  style={{
+                    backgroundColor: userProfile.gender === g.id ? '#2D6A3F' : 'rgba(200,146,42,0.1)',
+                    color: userProfile.gender === g.id ? '#FFFFFF' : '#8B4513',
+                  }}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ borderBottom: 'none' }}>
             <ProfileField
               icon="fi-rr-envelope" iconColor="#C8922A" label="البريد"
               value={userProfile.email}
               onEdit={() => startEditing('email', userProfile.email)}
             />
+          </div>
+        </div>
+
+
+        {/* ===== نمط 1 ضد 1 ===== */}
+        <div
+          className="mx-4 mb-4 rounded-2xl p-4"
+          style={{ backgroundColor: 'white', border: '1px solid rgba(200,146,42,0.2)' }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-base" style={{ fontFamily: "'Cairo', sans-serif", color: '#3D2B1F' }}>
+                إحصائيات 1 ضد 1
+              </h2>
+              <p className="text-xs mt-0.5" style={{ fontFamily: "'Cairo', sans-serif", color: '#8B5A2B' }}>
+                التصنيف: {userProfile.rating}
+              </p>
+            </div>
+            <div className="flex gap-3 text-center">
+              <div>
+                <p className="font-black text-lg" style={{ color: '#2D6A3F' }}>{userProfile.vsWins}</p>
+                <p className="text-[10px]" style={{ color: '#8B5A2B' }}>فوز</p>
+              </div>
+              <div>
+                <p className="font-black text-lg" style={{ color: '#DC2626' }}>{userProfile.vsLosses}</p>
+                <p className="text-[10px]" style={{ color: '#8B5A2B' }}>خسارة</p>
+              </div>
+              <div>
+                <p className="font-black text-lg" style={{ color: '#8B5A2B' }}>{userProfile.vsDraws}</p>
+                <p className="text-[10px]" style={{ color: '#8B5A2B' }}>تعادل</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -335,6 +472,18 @@ function ProfilePage() {
             <StatCard icon="fi-sr-flag-checkered" iconColor="#2D6A3F" value={userProfile.completedStages} label="المراحل المكتملة" />
             <StatCard icon="fi-sr-level-up"      iconColor="#1A7F8E" value={userProfile.currentLevel}    label="المستوى الحالي"  />
           </div>
+        </div>
+
+        {/* تسجيل الخروج */}
+        <div className="px-4 mt-4">
+          <button
+            onClick={signOut}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold press-effect no-tap-highlight"
+            style={{ backgroundColor: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#DC2626', fontFamily: "'Cairo', sans-serif" }}
+          >
+            <i className="fi fi-rr-sign-out-alt" aria-hidden="true" style={{ fontSize: '14px' }} />
+            <span>تسجيل الخروج</span>
+          </button>
         </div>
 
       </main>

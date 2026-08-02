@@ -51,11 +51,12 @@ function HomePage() {
     <AppWrapper>
 
       {/*
-        * Header مع إظهار زر الصوت
-        * showSound={true} → يعرض زر 🔇/🔊 بدلاً من زر الرجوع
+        * Header مع إظهار جرس الإشعارات وأيقونة "1 ضد 1"
+        * showNotifications={true} → يعرض جرس الإشعارات بدلاً من زر الرجوع
+        * showVsIcon={true}        → يعرض أيقونة "1 ضد 1" في المنتصف
         * في الصفحة الرئيسية لا يوجد "رجوع"
         */}
-      <Header showSound={true} />
+      <Header showNotifications={true} showVsIcon={true} />
 
       {/*
         * المنطقة القابلة للتمرير

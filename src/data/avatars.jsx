@@ -14,7 +14,8 @@
  * =====================================================
  */
 
-import boyImage from '../components/shared/Character1_Pic.png';
+import React from 'react';
+import boyImage  from '../components/shared/Character1_Pic.png';
 import girlImage from '../components/shared/Character2_Pic.png';
 import Horus from '../components/shared/Horus_Pic.png';
 import Isis from '../components/shared/Isis_Pic.png';

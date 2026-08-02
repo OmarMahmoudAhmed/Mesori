@@ -11,4 +11,3 @@ dist/
 .env
 .env.local
 .env.*.local
-.enx.example
